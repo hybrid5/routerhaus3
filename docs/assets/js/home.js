@@ -1,6 +1,6 @@
 /* ============================
    RouterHaus – home.js
-   Page-only behavior for index.html
+   Page-only behavior for index.html (new-site motions included)
 ============================ */
 (() => {
   "use strict";
@@ -9,7 +9,7 @@
 
   /* ---- Persona quick chips → route to kits with mapped filters ---- */
   function wireQuickChips() {
-    const chips = $$(".persona-chips .chip");
+    const chips = $$(".persona-chips .chip, .persona-chip");
     if (!chips.length) return;
 
     const map = {
@@ -22,30 +22,32 @@
     chips.forEach((btn) => {
       if (!btn.getAttribute("type")) btn.setAttribute("type", "button");
       btn.addEventListener("click", () => {
+        chips.forEach(c => c.classList.remove("active"));
+        btn.classList.add("active");
         const key = btn.dataset.qpick;
         const qs = map[key] || "quiz=1";
         window.location.href = `kits.html?${qs}`;
       });
+      btn.addEventListener("mouseenter", () => btn.classList.add("hover"));
+      btn.addEventListener("mouseleave", () => btn.classList.remove("hover"));
     });
   }
 
-  /* ---- Reveal animations on scroll (aligns with .reveal/.in-view in CSS) ---- */
-  function revealify() {
-    const els = $$(".reveal");
-    if (!els.length || !("IntersectionObserver" in window)) return;
+  /* ---- Reveal animations (new-site .visible classes) ---- */
+  function motionObserver() {
+    const animated = $$(".fade-in, .slide-in-left, .slide-in-right, .scale-in");
+    if (!animated.length || !("IntersectionObserver" in window)) return;
 
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((en) => {
-          if (en.isIntersecting) {
-            en.target.classList.add("in-view");
-            io.unobserve(en.target);
-          }
-        });
-      },
-      { rootMargin: "0px 0px -10% 0px", threshold: 0.1 }
-    );
-    els.forEach((el) => io.observe(el));
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (en.isIntersecting) {
+          en.target.classList.add("visible");
+          io.unobserve(en.target);
+        }
+      });
+    }, { threshold: 0.1, rootMargin: "0px 0px -50px 0px" });
+
+    animated.forEach((el) => io.observe(el));
   }
 
   /* ---- Perf-friendly parallax for hero-bg ---- */
@@ -69,47 +71,78 @@
     onScroll();
   }
 
-  /* ---- Gentle tilt on value/product cards (capped) ---- */
-  function tiltCards() {
-    const cards = $$(".value-card, .product");
+  /* ---- Particle system (new site) ---- */
+  function createParticles() {
+    const container = $("#particles");
+    if (!container) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+
+    const makeOne = () => {
+      const p = document.createElement("div");
+      p.className = "particle";
+      p.style.left = Math.random() * 100 + "%";
+      p.style.animationDelay = Math.random() * 15 + "s";
+      p.style.animationDuration = 15 + Math.random() * 10 + "s";
+      container.appendChild(p);
+      setTimeout(() => p.remove(), 25000);
+    };
+
+    for (let i = 0; i < 15; i++) setTimeout(makeOne, i * 800);
+    setInterval(() => { for (let i = 0; i < 4; i++) makeOne(); }, 4000);
+  }
+
+  /* ---- Trust logo shimmer (stagger) ---- */
+  function shimmerTrust() {
+    const logos = $$(".trust-logo");
+    logos.forEach((logo, i) => setTimeout(() => logo.classList.add("shimmer"), i * 150));
+  }
+
+  /* ---- Feature card click feedback ---- */
+  function featureClicks() {
+    $$(".feature-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        card.style.transform = "scale(0.98)";
+        setTimeout(() => { card.style.transform = ""; }, 120);
+        if (typeof showToast === "function") showToast("Learn more about this feature…", "info");
+      });
+    });
+  }
+
+  /* ---- Gentle tilt on products (capped) ---- */
+  function tiltProducts() {
+    const cards = $$(".product-card");
     if (!cards.length) return;
     cards.forEach((card) => {
       let rAF = 0;
       const onMove = (e) => {
         const rect = card.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const dx = (e.clientX - cx) / rect.width;
-        const dy = (e.clientY - cy) / rect.height;
+        const dx = (e.clientX - (rect.left + rect.width / 2)) / rect.width;
+        const dy = (e.clientY - (rect.top + rect.height / 2)) / rect.height;
         cancelAnimationFrame(rAF);
         rAF = requestAnimationFrame(() => {
-          card.style.transform =
-            `perspective(800px) rotateX(${(-dy * 2).toFixed(2)}deg) ` + // capped
-            `rotateY(${(dx * 2).toFixed(2)}deg) translateY(-4px)`;
+          card.style.transform = `translateY(-6px) rotateX(${(-dy * 2).toFixed(2)}deg) rotateY(${(dx * 2).toFixed(2)}deg)`;
         });
       };
-      const reset = () => {
-        cancelAnimationFrame(rAF);
-        card.style.transform = "";
-      };
+      const reset = () => { cancelAnimationFrame(rAF); card.style.transform = ""; };
       card.addEventListener("mousemove", onMove);
       card.addEventListener("mouseleave", reset);
       card.addEventListener("blur", reset, true);
     });
   }
 
-  /* ---- Hooks after header/footer partials (future use) ---- */
-  function wireHeaderHooks() {
-    // Example: const quizBtn = document.getElementById('openQuiz');
-  }
-
   /* ---- Init ---- */
   document.addEventListener("DOMContentLoaded", () => {
     wireQuickChips();
-    revealify();
+    motionObserver();
     parallaxHero();
-    tiltCards();
+    createParticles();
+    shimmerTrust();
+    featureClicks();
+    tiltProducts();
   });
 
-  document.addEventListener("partials:loaded", wireHeaderHooks);
+  document.addEventListener("partials:loaded", () => {
+    // reserved for future header/footer hooks
+  });
 })();
