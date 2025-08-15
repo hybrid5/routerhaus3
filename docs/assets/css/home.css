@@ -1,5 +1,6 @@
+/* assets/css/home.css */
 /* ======================================
-   RouterHaus — Home (refined, page-level)
+   RouterHaus — Home (refined, page-level) (Updated: Added chat styles, reduced-motion, asymmetric hero tweaks, custom cursor on desktop interactive, glowing borders dark mode)
    ====================================== */
 
 /* Layout */
@@ -12,6 +13,11 @@ section{padding: clamp(36px, 7vw, 88px) 0}
   --ring: color-mix(in oklab, var(--primary) 35%, transparent);
   --surface-1: color-mix(in oklab, var(--card) 92%, transparent);
   --surface-2: color-mix(in oklab, var(--card) 86%, transparent);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .reveal { transition: none !important; }
 }
 
 /* ===== HERO ===== */
@@ -150,3 +156,128 @@ section{padding: clamp(36px, 7vw, 88px) 0}
 /* ===== Reveal (match JS) ===== */
 .reveal{ opacity:0; transform:translateY(8px); transition:opacity .32s ease, transform .32s ease }
 .reveal.in-view{ opacity:1; transform:none }
+
+/* ===== Chat Widget ===== */
+.chat-btn.floating {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  border-radius: 999px;
+  padding: 0.8rem 1.2rem;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  transition: transform .18s ease;
+}
+.chat-btn.floating:hover { transform: translateY(-2px); }
+
+.chat-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .25s, visibility .25s;
+}
+.chat-modal.active {
+  opacity: 1;
+  visibility: visible;
+}
+.chat-content {
+  width: min(90vw, 480px);
+  max-height: 80vh;
+  overflow: auto;
+  padding: 1.2rem;
+  border-radius: var(--radius-lg);
+}
+.chat-content header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.chat-content header h3 { margin: 0; }
+.chat-content .close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.chat-messages {
+  min-height: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.message {
+  margin-bottom: 0.8rem;
+  padding: 0.6rem 1rem;
+  border-radius: 12px;
+  max-width: 80%;
+}
+.message.user {
+  background: var(--primary);
+  color: white;
+  margin-left: auto;
+}
+.message.ai {
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+.chat-input {
+  display: flex;
+  gap: 0.5rem;
+}
+.chat-input input {
+  flex: 1;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--card);
+}
+.chat-input button {
+  padding: 0.7rem 1.2rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+.chat-input .mic {
+  background: var(--secondary);
+}
+.chat-input .mic.active { background: var(--success); }
+.privacy {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.8rem;
+  text-align: center;
+}
+
+/* Dark mode refinements */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .glass,
+html[data-theme="dark"] .product {
+  border-color: color-mix(in oklab, var(--primary) 20%, transparent);
+}
+
+/* Custom cursor on desktop interactive (professional: use pointer for now; add custom url if asset available) */
+@media (min-width: 769px) {
+  .chip:hover, .btn:hover, .btn-secondary:hover {
+    cursor: pointer;
+  }
+}
