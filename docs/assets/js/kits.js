@@ -1,9 +1,5 @@
 /* RouterHaus Kits — App logic (client-side)
-   Debug & hardening:
-   - Guard null DOM refs (progress bar, picks area, etc.)
-   - Remove undefined LS_KEY, add toast shim
-   - Safe user message rendering
-   - Preserve microdata when updating price
+   (see header of your original for the full feature list)
 */
 (() => {
   // ---------- Utilities ----------
@@ -20,12 +16,19 @@
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
   const fmtMoney = (v) => (v == null || Number(v) === 0 ? '' : `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
   const uniq = (arr) => Array.from(new Set(arr.filter(Boolean)));
-  const nopunct = (s) => String(s || '').toLowerCase().replace(/[\W_]+/g, '');
-  const toast = (msg, type = 'info') => {
-    // Minimal shim; if a global showToast exists, use it
-    if (typeof window.showToast === 'function') { window.showToast(msg, type); return; }
-    (type === 'error' ? console.error : console.log)(msg);
+  const nopunct = (s) => String(s || '').toLowerCase().replace(/[\W_]+/g, ''); // normalize for fuzzy inclusion
+
+  // Safe toast (fallback if a global showToast isn’t present)
+  const showToast = (msg, type = 'info') => {
+    try {
+      if (typeof window.showToast === 'function') return window.showToast(msg, type);
+      console[type === 'error' ? 'error' : 'log'](`[${type}] ${msg}`);
+    } catch {}
   };
+
+  // Optionally persist chat unless user opts out
+  const LS_KEY_CHAT = 'rh.chat.history';
+  const MAX_CHAT_MSGS = 50;
 
   // ---------- State ----------
   const state = {
@@ -65,6 +68,7 @@
     pageSizeSelect: byId('pageSizeSelect'),
     toggleRecos: byId('toggleRecos'),
     lowDataToggle: byId('lowDataToggle'),
+
     progressFill: byId('progressFill'),
 
     yourPicks: byId('yourPicks'),
@@ -94,7 +98,6 @@
     applyDrawer: byId('applyDrawer'),
 
     openFiltersHeader: byId('openFiltersHeader'),
-
     copyLink: byId('copyLink'),
     resetAll: byId('resetAll'),
 
@@ -138,8 +141,8 @@
     chatModal: byId('chat-modal'),
     chatMessages: $('.chat-messages', byId('chat-modal')),
     chatInputForm: $('.chat-input', byId('chat-modal')),
-    chatInput: $('input[type="text"]', $('.chat-input')),
-    chatMic: $('.mic', $('.chat-input')),
+    chatInput: $('.chat-input input', byId('chat-modal')),
+    chatMic: $('.chat-input .mic', byId('chat-modal')),
     chatOptOut: byId('opt-out'),
   };
 
@@ -156,7 +159,7 @@
   // ---------- Data ----------
   const getJsonUrl = () => (window.RH_CONFIG?.jsonUrl || 'kits.json');
   const fetchData = async () => {
-    const urls = [getJsonUrl(), './kits.json'];
+    const urls = [getJsonUrl(), './kits.json']; // include fallback
     for (const u of urls) {
       try {
         const res = await fetch(u, { cache: 'no-store' });
@@ -171,57 +174,66 @@
   // ---------- Derivations / normalizers ----------
   function deriveFields(x, idx) {
     const o = { ...x };
+
+    // ids/brand/model
     o.id = o.id ?? `k_${idx}_${(o.model || '').replace(/\W+/g, '').slice(0, 12)}`;
     o.brand = o.brand || o.manufacturer || guessBrand(o.model);
     o.model = (o.model || '').trim();
 
+    // wifi
     o.wifiStandard = normWifi(o.wifiStandard || o.wifi || '');
     if (!Array.isArray(o.wifiBands) || !o.wifiBands.length) o.wifiBands = guessBands(o.wifiStandard);
 
+    // mesh, coverage
     o.meshReady = !!o.meshReady;
     o.coverageSqft = num(o.coverageSqft);
     o.coverageBucket = o.coverageBucket || coverageToBucket(o.coverageSqft);
 
+    // WAN tier
     o.maxWanSpeedMbps = num(o.maxWanSpeedMbps);
     o.wanTierLabel = o.wanTierLabel || wanLabelFromMbps(o.maxWanSpeedMbps);
     o.wanTier = o.wanTier ?? wanNumericFromLabel(o.wanTierLabel);
 
+    // ports
     o.lanCount = Number.isFinite(Number(o.lanCount)) ? Number(o.lanCount) : null;
     o.multiGigLan = !!o.multiGigLan;
     o.usb = !!o.usb;
 
+    // device capacity/load
     o.deviceCapacity = num(o.deviceCapacity);
     if (!o.deviceLoad) o.deviceLoad = capacityToLoad(o.deviceCapacity);
 
+    // uses
     if (!Array.isArray(o.primaryUses)) o.primaryUses = o.primaryUse ? [String(o.primaryUse)] : [];
     if (!o.primaryUse && o.primaryUses.length) o.primaryUse = o.primaryUses[0];
     o.primaryUse = o.primaryUse || 'All-Purpose';
 
+    // applicable* inclusive envelopes
     o.applicableDeviceLoads = Array.isArray(o.applicableDeviceLoads) && o.applicableDeviceLoads.length
-      ? uniq(o.applicableDeviceLoads)
-      : uniq([o.deviceLoad]);
+      ? uniq(o.applicableDeviceLoads) : uniq([o.deviceLoad]);
     o.applicableCoverageBuckets = Array.isArray(o.applicableCoverageBuckets) && o.applicableCoverageBuckets.length
-      ? uniq(o.applicableCoverageBuckets)
-      : uniq([o.coverageBucket]);
+      ? uniq(o.applicableCoverageBuckets) : uniq([o.coverageBucket]);
     o.applicableWanTiers = Array.isArray(o.applicableWanTiers) && o.applicableWanTiers.length
-      ? uniq(o.applicableWanTiers)
-      : uniq([o.wanTierLabel]);
+      ? uniq(o.applicableWanTiers) : uniq([o.wanTierLabel]);
     o.applicablePrimaryUses = Array.isArray(o.applicablePrimaryUses) && o.applicablePrimaryUses.length
-      ? uniq(o.applicablePrimaryUses.concat(o.primaryUses))
-      : uniq(o.primaryUses);
+      ? uniq(o.applicablePrimaryUses.concat(o.primaryUses)) : uniq(o.primaryUses);
 
+    // access & price
     o.accessSupport = Array.isArray(o.accessSupport) && o.accessSupport.length ? o.accessSupport : ['Cable', 'Fiber'];
     o.priceUsd = num(o.priceUsd);
     o.priceBucket = o.priceBucket || priceToBucket(o.priceUsd);
 
+    // reviews / rating
     o.reviewCount = num(o.reviewCount ?? o.reviews);
     o.reviews = o.reviewCount;
     o.rating = Number.isFinite(Number(o.rating)) ? Number(o.rating) : 0;
 
+    // misc
     o.img = typeof o.img === 'string' ? o.img : (o.image || '');
     o.url = typeof o.url === 'string' ? o.url : '';
     o.updatedAt = o.updatedAt || '';
 
+    // simple relevance
     o._score =
       (o.wifiStandard === '7' ? 5 : o.wifiStandard === '6E' ? 4 : o.wifiStandard === '6' ? 3 : 1) +
       (o.meshReady ? 1 : 0) +
@@ -307,7 +319,7 @@
   // ---------- Facets ----------
   function buildFacetDefs() {
     state.facetDefs = {
-      brand: { id: 'brand', label: 'Brand', el: el.facet_brand, badge: el.badge_brand, getValues: (o) => [o.brand].filter(Boolean), order: null },
+      brand: { id: 'brand', label: 'Brand', el: el.facet_brand, badge: el.badge_brand, getValues: (o) => [o.brand].filter(Boolean) },
       wifi:  { id: 'wifi',  label: 'Wi-Fi', el: el.facet_wifiGen, badge: el.badge_wifi, getValues: (o) => [o.wifiStandard].filter(Boolean), order: ['7','6E','6','5'] },
       bands: { id: 'bands', label: 'Bands', el: el.facet_wifiBands, getValues: (o) => Array.isArray(o.wifiBands) ? o.wifiBands.filter(Boolean) : [], order: ['2.4','5','6'] },
       mesh:  {
@@ -321,7 +333,7 @@
         getValues: (o) => (Array.isArray(o.applicableWanTiers) && o.applicableWanTiers.length ? o.applicableWanTiers : [o.wanTierLabel].filter(Boolean)),
         order: ['10G','5G','2.5G','≤1G'],
       },
-      lanCount: { id: 'lanCount', label: 'LAN Ports', el: el.facet_lanCount, getValues: (o) => Number.isFinite(o.lanCount) ? [String(o.lanCount)] : [], order: null },
+      lanCount: { id: 'lanCount', label: 'LAN Ports', el: el.facet_lanCount, getValues: (o) => Number.isFinite(o.lanCount) ? [String(o.lanCount)] : [] },
       multiGigLan: { id: 'multiGigLan', label: 'Multi-Gig LAN', el: el.facet_multiGigLan, getValues: (o) => [o.multiGigLan ? 'Yes' : 'No'], order: ['Yes','No'] },
       usb:   { id: 'usb', label: 'USB', el: el.facet_usb, getValues: (o) => [o.usb ? 'Yes' : 'No'], order: ['Yes','No'] },
       coverage: {
@@ -334,15 +346,10 @@
         getValues: (o) => (Array.isArray(o.applicableDeviceLoads) && o.applicableDeviceLoads.length ? o.applicableDeviceLoads : [o.deviceLoad].filter(Boolean)),
         order: ['1–5','6–15','16–30','31–60','61–100','100+'],
       },
-      use:   {
-        id: 'use', label: 'Primary Use', el: el.facet_primaryUse, badge: el.badge_use,
-        getValues: (o) => uniq([...(o.primaryUses || []), ...(o.applicablePrimaryUses || []), o.primaryUse]).filter(Boolean),
-        order: null,
-      },
-      access: { id: 'access', label: 'Access', el: el.facet_access, getValues: (o) => Array.isArray(o.accessSupport) ? o.accessSupport.filter(Boolean) : [], order: ['Cable','Fiber','FixedWireless5G','Satellite','DSL'] },
-      price:  { id: 'price', label: 'Price', el: el.facet_priceBucket, badge: el.badge_price, getValues: (o) => [o.priceBucket].filter(Boolean).filter(x => x !== 'N/A'), order: ['<150','150–299','300–599','600+'] },
+      use:   { id: 'use', label: 'Primary Use', el: el.facet_primaryUse, badge: el.badge_use, getValues: (o) => uniq([...(o.primaryUses || []), ...(o.applicablePrimaryUses || []), o.primaryUse]).filter(Boolean) },
+      access:{ id: 'access', label: 'Access', el: el.facet_access, getValues: (o) => Array.isArray(o.accessSupport) ? o.accessSupport.filter(Boolean) : [], order: ['Cable','Fiber','FixedWireless5G','Satellite','DSL'] },
+      price: { id: 'price', label: 'Price', el: el.facet_priceBucket, badge: el.badge_price, getValues: (o) => [o.priceBucket].filter(Boolean).filter(x => x !== 'N/A'), order: ['<150','150–299','300–599','600+'] },
     };
-
     for (const key of Object.keys(state.facetDefs)) {
       const val = qs.get(key);
       state.facets[key] = new Set(val ? val.split(',') : []);
@@ -354,10 +361,7 @@
     for (const key of Object.keys(state.facetDefs)) setmap[key] = new Set();
     for (const o of state.data) {
       for (const [key, def] of Object.entries(state.facetDefs)) {
-        def.getValues(o).forEach(v => {
-          const s = String(v || '').trim();
-          if (s) setmap[key].add(s);
-        });
+        def.getValues(o).forEach(v => { const s = String(v || '').trim(); if (s) setmap[key].add(s); });
       }
     }
     const opts = {};
@@ -416,7 +420,7 @@
     }
   }
 
-  // ---------- Filtering ----------
+  // ---------- Filtering / search ----------
   function applyFilters() {
     const selected = state.facets;
     const anyFacet = Object.values(selected).some(s => s.size);
@@ -427,12 +431,14 @@
         const hayRaw = [
           o.brand, o.model,
           'wifi', `wifi-${o.wifiStandard}`, `wifi ${o.wifiStandard}`, `wifi${o.wifiStandard}`,
-          o.wifiStandard, o.wanTierLabel,
+          o.wifiStandard,
+          o.wanTierLabel,
           o.meshReady ? 'mesh mesh-ready' : 'standalone non-mesh',
           ...(o.primaryUses || []),
           ...(o.applicablePrimaryUses || []),
           ...(o.useTags || []),
         ].join(' ').toLowerCase();
+
         const hayComp = nopunct(hayRaw);
         const tokens = term.split(/\s+/).filter(Boolean);
         for (const t of tokens) {
@@ -444,11 +450,13 @@
       for (const [key, def] of Object.entries(state.facetDefs)) {
         const sel = selected[key];
         if (!sel || sel.size === 0) continue;
+
         if (def.map) {
           const any = [...sel].some(v => !!def.map[v]?.(o));
           if (!any) return false;
           continue;
         }
+
         const vals = new Set(def.getValues(o).map(String));
         let any = false;
         for (const v of sel) { if (vals.has(v)) { any = true; break; } }
@@ -458,7 +466,7 @@
     });
 
     state.filtered = out;
-    el.emptyState?.classList.toggle('hide', !(anyFacet && out.length === 0));
+    el.emptyState.classList.toggle('hide', !(anyFacet && out.length === 0));
     return out;
   }
 
@@ -476,7 +484,9 @@
   function cmpPriceAsc(a, b) { return (a.priceUsd || Infinity) - (b.priceUsd || Infinity); }
   function rankWifi(o) { return o.wifiStandard === '7' ? 4 : o.wifiStandard === '6E' ? 3 : o.wifiStandard === '6' ? 2 : 1; }
 
-  function sortResults() { state.filtered.sort(comparators[state.sort] || comparators.relevance); }
+  function sortResults() {
+    state.filtered.sort(comparators[state.sort] || comparators.relevance);
+  }
 
   // ---------- Pagination ----------
   function paginate() {
@@ -504,7 +514,10 @@
       b.setAttribute('data-page', String(page));
       b.disabled = page === state.page;
       if (cls === 'page' && page === state.page) b.setAttribute('aria-current', 'page');
-      b.addEventListener('click', () => { state.page = page; onStateChanged({ scrollToTop: true }); });
+      b.addEventListener('click', () => {
+        state.page = page;
+        onStateChanged({ scrollToTop: true });
+      });
       b.addEventListener('keyup', (e) => { if (e.key === 'Enter' || e.key === ' ') b.click(); });
       return b;
     };
@@ -518,6 +531,7 @@
     next.disabled = state.page === pageCount;
 
     container.appendChild(prev);
+
     const pages = numberedPages(state.page, pageCount);
     for (const p of pages) {
       if (p === '…') {
@@ -534,18 +548,25 @@
 
   function numberedPages(current, total) {
     const arr = [];
+    const push = (x) => arr.push(x);
     const windowSize = 2;
     const start = Math.max(1, current - windowSize);
     const end = Math.min(total, current + windowSize);
-    if (start > 1) { arr.push(1); if (start > 2) arr.push('…'); }
-    for (let i = start; i <= end; i++) arr.push(i);
-    if (end < total) { if (end < total - 1) arr.push('…'); arr.push(total); }
+
+    if (start > 1) {
+      push(1);
+      if (start > 2) push('…');
+    }
+    for (let i = start; i <= end; i++) push(i);
+    if (end < total) {
+      if (end < total - 1) push('…');
+      push(total);
+    }
     return arr;
   }
 
-  // ---------- Chips ----------
+  // ---------- Chips (active filters) ----------
   function renderActiveChips() {
-    if (!el.activeChips) return;
     el.activeChips.innerHTML = '';
     let any = false;
     for (const [key, def] of Object.entries(state.facetDefs)) {
@@ -572,6 +593,7 @@
     if (el.activeCountBadge) el.activeCountBadge.textContent = String(activeCount);
   }
 
+  // Esc quick-clear
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     const searchInput = byId('searchInput');
@@ -606,26 +628,27 @@
     updateCompareUI();
   }
   function clearCompareAll() { state.compare.clear(); updateCompareUI(); }
-
   function updateCompareUI() {
     const items = [...state.compare].map(id => state.data.find(x => x.id === id)).filter(Boolean);
-    if (el.compareItemsPanel) {
-      el.compareItemsPanel.innerHTML = '';
-      for (const it of items) el.compareItemsPanel.appendChild(compareBadge(it));
-    }
-    if (el.compareItems) {
-      el.compareItems.innerHTML = '';
-      for (const it of items) el.compareItems.appendChild(compareBadge(it));
-    }
-    if (el.compareCount) el.compareCount.textContent = String(items.length);
-    if (el.compareSticky) el.compareSticky.hidden = items.length === 0;
-    el.clearCompare?.addEventListener('click', clearCompareAll, { once: true });
-    el.clearCompareMobile?.addEventListener('click', clearCompareAll, { once: true });
+
+    el.compareItemsPanel.innerHTML = '';
+    for (const it of items) el.compareItemsPanel.appendChild(compareBadge(it));
+
+    el.compareItems.innerHTML = '';
+    for (const it of items) el.compareItems.appendChild(compareBadge(it));
+
+    el.compareCount.textContent = String(items.length);
+    el.compareSticky.hidden = items.length === 0;
+
+    el.clearCompare?.addEventListener('click', clearCompareAll);
+    el.clearCompareMobile?.addEventListener('click', clearCompareAll);
+
     $$('.compare-btn').forEach(btn => {
       const id = btn.closest('.product')?.dataset?.id;
       btn.setAttribute('aria-pressed', state.compare.has(id) ? 'true' : 'false');
     });
-    if (items.length === 0 && el.compareDrawer) el.compareDrawer.hidden = true;
+
+    if (items.length === 0) el.compareDrawer.hidden = true;
   }
   function compareBadge(it) {
     const span = document.createElement('span');
@@ -636,7 +659,6 @@
     return span;
   }
   el.compareSticky?.addEventListener('click', () => {
-    if (!el.compareDrawer) return;
     el.compareDrawer.hidden = !el.compareDrawer.hidden;
   });
 
@@ -648,10 +670,12 @@
     return covOK && devOK && useOK;
   }
   function computeRecommendations() {
+    if (!state.showRecos) return [];
     if (!state.quiz) return state.data
       .slice()
       .sort((a,b) => (rankWifi(b)-rankWifi(a)) || (wanRank(b)-wanRank(a)) || (b._score-a._score))
       .slice(0,8);
+
     const q = state.quiz;
     return state.data
       .filter(o => quizMatch(o, q))
@@ -659,28 +683,24 @@
       .slice(0, 8);
   }
   function renderRecommendations() {
-    if (!el.recommendations) return;
-    if (!state.showRecos) { el.recommendations.style.display = 'none'; return; }
     const rec = computeRecommendations();
     el.recommendations.style.display = rec.length ? '' : 'none';
-    if (el.recoGrid) {
-      el.recoGrid.innerHTML = '';
-      el.recoNote.textContent = state.quiz ? 'Based on your quiz answers' : 'Top picks right now';
-      for (const o of rec) el.recoGrid.appendChild(renderCard(o));
-    }
+    el.recoGrid.innerHTML = '';
+    el.recoNote.textContent = state.quiz ? 'Based on your quiz answers' : 'Top picks right now';
+    for (const o of rec) el.recoGrid.appendChild(renderCard(o));
   }
 
-  // ---------- Your Picks (personalized) ----------
+  // ---------- Your Picks ----------
   function renderYourPicks() {
-    if (!el.yourPicks || !el.picksGrid) return; // not present on this page
     if (!state.quiz || state.optOut) {
-      el.yourPicks.hidden = true;
+      el.yourPicks && (el.yourPicks.hidden = true);
       return;
     }
     const picks = state.data
       .filter(o => quizMatch(o, state.quiz))
       .sort((a,b) => b._score - a._score)
       .slice(0, 4);
+    if (!el.yourPicks) return;
     el.yourPicks.hidden = picks.length === 0;
     el.picksGrid.innerHTML = '';
     picks.forEach(o => el.picksGrid.appendChild(renderCard(o)));
@@ -696,7 +716,6 @@
   function hideSkeletons() { if (el.skeletonGrid) el.skeletonGrid.style.display = 'none'; }
 
   function renderResults(items) {
-    if (!el.resultsGrid) return;
     el.resultsGrid.innerHTML = '';
     const frag = document.createDocumentFragment();
     for (const o of items) frag.appendChild(renderCard(o));
@@ -717,26 +736,15 @@
     const chips = node.querySelector('.chips.line');
     const chipTexts = Array.isArray(o.chipsOverride) && o.chipsOverride.length
       ? o.chipsOverride.slice(0, 3)
-      : [
-          `Wi-Fi ${o.wifiStandard}`,
-          o.meshReady ? 'Mesh-ready' : null,
-          wanChip(o) || null
-        ].filter(Boolean);
+      : [ `Wi-Fi ${o.wifiStandard}`, o.meshReady ? 'Mesh-ready' : null, wanChip(o) || null ].filter(Boolean);
     chipTexts.forEach(t => chips.appendChild(chip(t)));
     if (chipTexts.length < 3 && o.coverageBucket) chips.appendChild(chip(o.coverageBucket));
 
     const specs = node.querySelector('.specs');
-    const bullets = (Array.isArray(o.fitBullets) && o.fitBullets.length >= 3)
-      ? o.fitBullets.slice(0,4)
-      : buildBullets(o);
+    const bullets = (Array.isArray(o.fitBullets) && o.fitBullets.length >= 3) ? o.fitBullets.slice(0,4) : buildBullets(o);
     bullets.forEach(t => specs.appendChild(li(t)));
 
-    // Price + CTA (preserve microdata spans)
-    const priceWrap = node.querySelector('.price');
-    const priceSpan = node.querySelector('[itemprop="price"]');
-    if (priceSpan) priceSpan.textContent = o.priceUsd ? Number(o.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '';
-    else priceWrap.textContent = fmtMoney(o.priceUsd);
-
+    node.querySelector('.price').textContent = fmtMoney(o.priceUsd);
     const buy = node.querySelector('.ctaRow a');
     if (o.url) { buy.href = o.url; buy.removeAttribute('aria-disabled'); buy.classList.remove('disabled'); buy.textContent = 'Buy'; }
     else { buy.href = '#'; buy.setAttribute('aria-disabled','true'); buy.classList.add('disabled'); buy.textContent = 'Details'; }
@@ -750,13 +758,11 @@
     function chip(t) { const s = document.createElement('span'); s.className = 'chip'; s.textContent = t; return s; }
     function li(t) { const li = document.createElement('li'); li.textContent = t; return li; }
   }
-
   function wanChip(o) {
     const l = o.wanTierLabel || wanLabelFromMbps(o.maxWanSpeedMbps);
     if (!l) return '';
     return l === '≤1G' ? 'Up to 1G WAN' : `${l} WAN`;
   }
-
   function buildBullets(o) {
     const out = [];
     if (o.coverageBucket) out.push(`Home size: ${o.coverageBucket}`);
@@ -782,8 +788,13 @@
     }
     if (el.toggleRecos) {
       el.toggleRecos.checked = state.showRecos;
-      el.toggleRecos.addEventListener('change', () => { state.showRecos = el.toggleRecos.checked; syncUrl(); renderRecommendations(); });
+      el.toggleRecos.addEventListener('change', () => {
+        state.showRecos = el.toggleRecos.checked;
+        syncUrl();
+        renderRecommendations();
+      });
     }
+
     if (el.lowDataToggle) {
       el.lowDataToggle.checked = state.lowDataMode;
       el.lowDataToggle.addEventListener('change', () => {
@@ -792,13 +803,11 @@
         document.body.classList.toggle('low-data', state.lowDataMode);
         onStateChanged({});
       });
-      document.body.classList.toggle('low-data', state.lowDataMode);
     }
+    document.body.classList.toggle('low-data', state.lowDataMode);
+
     el.openFiltersHeader?.addEventListener('click', openDrawer);
-    el.filtersFab?.addEventListener('click', () => {
-      openDrawer();
-      el.filtersFab.setAttribute('aria-expanded', 'true');
-    });
+    el.filtersFab?.addEventListener('click', () => { openDrawer(); el.filtersFab.setAttribute('aria-expanded', 'true'); });
 
     wireSearch();
     wireCommandBarCondense();
@@ -834,30 +843,33 @@
     }
 
     input.value = state.search;
-    const applySearch = () => { state.search = (input.value || '').trim().toLowerCase(); state.page = 1; onStateChanged({ scrollToTop: true }); };
+
+    const applySearch = () => {
+      state.search = (input.value || '').trim().toLowerCase();
+      state.page = 1;
+      onStateChanged({ scrollToTop: true });
+    };
+
     const onType = debounce(() => applySearch(), 220);
     input.addEventListener('input', onType);
 
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); applySearch(); }
-      if (e.key === 'Escape' && input.value) { e.preventDefault(); input.value = ''; applySearch(); }
+      if (e.key === 'Escape' && input.value) {
+        e.preventDefault();
+        input.value = '';
+        applySearch();
+      }
     });
 
     if (btn) btn.addEventListener('click', applySearch);
 
-    document.addEventListener('keydown', (e) => {
-      const tag = (document.activeElement?.tagName || '').toLowerCase();
-      const typingField = tag === 'input' || tag === 'textarea' || tag === 'select' || document.activeElement?.isContentEditable;
-      const modK = (e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey));
-      if (typingField && !modK) return;
-      if (modK || e.key === '/') { e.preventDefault(); input.focus(); input.select(); }
-    });
-
+    // Voice search
     if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
       const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
       const rec = new SpeechRec();
       rec.lang = "en-US";
-      const micBtn = $('.mic', wrap);
+      const micBtn = wrap ? $('.mic', wrap) : null;
       if (micBtn) {
         micBtn.style.display = "inline-flex";
         micBtn.addEventListener("click", () => { rec.start(); micBtn.classList.add("active"); });
@@ -868,7 +880,7 @@
           micBtn.classList.remove("active");
         };
         rec.onend = () => micBtn.classList.remove("active");
-        rec.onerror = () => { toast("Voice recognition error", "error"); micBtn.classList.remove("active"); };
+        rec.onerror = () => { showToast("Voice recognition error", "error"); micBtn.classList.remove("active"); };
       }
     }
   }
@@ -876,13 +888,16 @@
   function wireCommandBarCondense() {
     const bar = $('.command-bar');
     if (!bar) return;
-    const onScroll = () => { const y = window.scrollY || document.documentElement.scrollTop; bar.classList.toggle('is-condensed', y > 50); };
+    const onScroll = () => {
+      const y = window.scrollY || document.documentElement.scrollTop;
+      bar.classList.toggle('is-condensed', y > 50);
+    };
     addEventListener('scroll', onScroll, { passive: true });
     onScroll();
   }
 
   function wireProgressBar() {
-    if (!el.progressFill) return; // guard if markup removed
+    if (!el.progressFill) return; // guard
     const update = () => {
       const h = Math.max(1, document.documentElement.scrollHeight - innerHeight);
       el.progressFill.style.width = `${(scrollY / h * 100)}%`;
@@ -891,9 +906,8 @@
     update();
   }
 
-  // ---------- Drawer ----------
+  // ---------- Drawer (mobile filters) ----------
   function openDrawer() {
-    if (!el.filtersForm || !el.filtersDrawer || !el.drawerFormMount) return;
     el.drawerFormMount.innerHTML = '';
     const clone = el.filtersForm.cloneNode(true);
     el.drawerFormMount.appendChild(clone);
@@ -901,9 +915,11 @@
     document.documentElement.classList.add('scroll-lock');
 
     $$('[data-close-drawer]').forEach(b => b.addEventListener('click', closeDrawer, { once: true }));
-    if (el.applyDrawer) {
-      el.applyDrawer.onclick = () => { syncChecks(clone, el.filtersForm); closeDrawer(); onStateChanged({}); };
-    }
+    el.applyDrawer.onclick = () => {
+      syncChecks(clone, el.filtersForm);
+      closeDrawer();
+      onStateChanged({});
+    };
 
     function syncChecks(src, dst) {
       const map = new Map();
@@ -916,7 +932,6 @@
     }
   }
   function closeDrawer() {
-    if (!el.filtersDrawer) return;
     el.filtersDrawer.setAttribute('aria-hidden', 'true');
     el.filtersFab?.setAttribute('aria-expanded', 'false');
     document.documentElement.classList.remove('scroll-lock');
@@ -965,11 +980,13 @@
   function updateCounts() {
     const total = state.filtered.length;
     const all = state.data.length;
-    if (el.matchCount) el.matchCount.textContent = `${total} match${total === 1 ? '' : 'es'} / ${all}`;
-    if (el.kitsStatus) el.kitsStatus.textContent = `Showing ${Math.min(total, state.pageSize)} of ${total} matches`;
+    el.matchCount.textContent = `${total} match${total === 1 ? '' : 'es'} / ${all}`;
+    const start = (state.page - 1) * state.pageSize + 1;
+    const end = Math.min(total, state.page * state.pageSize);
+    el.kitsStatus.textContent = total ? `Showing ${start}-${end} of ${total}` : `No results`;
   }
 
-  // ---------- Quick chips ----------
+  // ---------- Quick chips (unified) ----------
   function renderQuickChips() {
     const make = (label, fn) => {
       const c = document.createElement('button');
@@ -1032,11 +1049,11 @@
     state.showRecos = true;
     if (el.toggleRecos) el.toggleRecos.checked = true;
     onStateChanged({ scrollToRecos: true });
+
     const editBtn = byId('editQuiz');
     if (editBtn) editBtn.removeAttribute('hidden');
   };
 
-  // ---------- Header quiz bridges ----------
   function wireHeaderQuizBridges() {
     document.addEventListener('click', (e) => {
       const openBtn = e.target.closest('[data-open-quiz]');
@@ -1046,6 +1063,7 @@
         else document.dispatchEvent(new CustomEvent('quiz:open'));
       }
     });
+
     document.addEventListener('click', (e) => {
       const editBtn = e.target.closest('[data-edit-quiz]');
       if (editBtn) {
@@ -1053,6 +1071,7 @@
         if (t && !t.hasAttribute('hidden')) t.click();
       }
     });
+
     const editHeader = document.getElementById('editQuiz');
     const editMobile = document.querySelector('[data-edit-quiz]');
     if (editHeader && editMobile) {
@@ -1082,10 +1101,7 @@
             `rotateY(${(dx * 6).toFixed(2)}deg) translateY(-6px)`;
         });
       };
-      const reset = () => {
-        cancelAnimationFrame(rAF);
-        card.style.transform = "";
-      };
+      const reset = () => { cancelAnimationFrame(rAF); card.style.transform = ""; };
       card.addEventListener("mousemove", onMove);
       card.addEventListener("mouseleave", reset);
       card.addEventListener("blur", reset, true);
@@ -1096,7 +1112,12 @@
     const els = $$(".reveal");
     if (!els.length || !("IntersectionObserver" in window)) return;
     const io = new IntersectionObserver((entries) => {
-      entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("in-view"); io.unobserve(en.target); } });
+      entries.forEach((en) => {
+        if (en.isIntersecting) {
+          en.target.classList.add("in-view");
+          io.unobserve(en.target);
+        }
+      });
     }, { rootMargin: "0px 0px -10% 0px", threshold: 0.1 });
     els.forEach((el) => io.observe(el));
   }
@@ -1105,24 +1126,28 @@
   function wireChat() {
     if (!el.chatBtn || !el.chatModal || !el.chatMessages || !el.chatInputForm || !el.chatInput) return;
 
+    // hydrate past (optional)
+    if (!state.optOut) {
+      const prev = LS.get(LS_KEY_CHAT, []);
+      prev.forEach(m => addMessage(m.text, m.type));
+    }
+
     el.chatBtn.addEventListener("click", () => {
       el.chatModal.classList.add("active");
       el.chatModal.setAttribute("aria-hidden", "false");
     });
 
-    $('.close', el.chatModal)?.addEventListener("click", () => {
+    $('.close', el.chatModal).addEventListener("click", () => {
       el.chatModal.classList.remove("active");
       el.chatModal.setAttribute("aria-hidden", "true");
     });
 
     el.chatOptOut?.addEventListener("click", (e) => {
       e.preventDefault();
-      // Clear any persisted bits we own
-      LS.del('rh.quiz.answers');
+      LS.del(LS_KEY_CHAT);
       state.optOut = true;
       LS.set('rh.optOut', true);
-      toast("Data persistence opted out and cleared", "info");
-      renderYourPicks();
+      showToast("Data persistence opted out and cleared", "info");
     });
 
     el.chatInputForm.addEventListener("submit", (e) => {
@@ -1131,18 +1156,20 @@
       if (!q) return;
       addMessage(q, "user");
       el.chatInput.value = "";
+
       let response = "Based on your query, explore our kits for tailored recommendations.";
-      const ql = q.toLowerCase();
-      if (ql.includes("3-floor") || ql.includes("large home") || ql.includes("multi-floor")) {
+      const t = q.toLowerCase();
+      if (t.includes("3-floor") || t.includes("large home") || t.includes("multi-floor")) {
         response = 'For multi-floor homes, mesh systems provide optimal coverage. <a href="kits.html?coverage=Large/Multi-floor&mesh=Mesh-ready&recos=1">View large home options</a>.';
-      } else if (ql.includes("gaming")) {
+      } else if (t.includes("gaming")) {
         response = 'Gaming setups benefit from high-speed WAN. <a href="kits.html?use=Gaming&wan=2.5G&recos=1">View gaming kits</a>.';
-      } else if (ql.includes("apartment") || ql.includes("small")) {
+      } else if (t.includes("apartment") || t.includes("small")) {
         response = 'Compact spaces need efficient routers. <a href="kits.html?coverage=Apartment/Small&recos=1">View apartment options</a>.';
       }
-      setTimeout(() => addMessage(response, "ai", true), 300);
+      setTimeout(() => addMessage(response, "ai"), 400);
     });
 
+    // Voice input
     if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
       const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
       const rec = new SpeechRec();
@@ -1158,17 +1185,23 @@
           micBtn.classList.remove("active");
         };
         rec.onend = () => micBtn.classList.remove("active");
-        rec.onerror = () => { toast("Voice recognition error", "error"); micBtn.classList.remove("active"); };
+        rec.onerror = () => { showToast("Voice recognition error", "error"); micBtn.classList.remove("active"); };
       }
     }
 
-    function addMessage(text, type, allowHtml = false) {
+    function addMessage(text, type) {
       const div = document.createElement("div");
       div.classList.add("message", type);
-      if (allowHtml) div.innerHTML = text;
-      else div.textContent = text; // SAFE for user messages
+      div.innerHTML = text;
       el.chatMessages.appendChild(div);
       el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+
+      if (!state.optOut) {
+        const prev = LS.get(LS_KEY_CHAT, []);
+        prev.push({ text, type });
+        if (prev.length > MAX_CHAT_MSGS) prev.splice(0, prev.length - MAX_CHAT_MSGS);
+        LS.set(LS_KEY_CHAT, prev);
+      }
     }
   }
 
@@ -1184,8 +1217,8 @@
       hideSkeletons();
     } catch (e) {
       hideSkeletons();
-      el.kitsError?.classList.remove('hide');
-      if (el.kitsError) el.kitsError.textContent = 'Failed to load kits. Please try again later.';
+      el.kitsError.classList.remove('hide');
+      el.kitsError.textContent = 'Failed to load kits. Please try again later.';
       return;
     }
 
@@ -1196,6 +1229,7 @@
     renderQuickChips();
     wireChat();
 
+    // Apply initial URL to controls
     for (const [key] of Object.entries(state.facetDefs)) {
       const details = document.querySelector(`details.facet[data-facet="${key}"]`);
       if (!details) continue;
@@ -1232,7 +1266,7 @@
     renderYourPicks();
     updateCompareUI();
 
-    el.emptyState?.classList.toggle('hide', state.filtered.length > 0);
+    el.emptyState.classList.toggle('hide', state.filtered.length > 0);
 
     if (opts?.focusAfter?.focus) requestAnimationFrame(() => opts.focusAfter.focus());
     if (opts?.scrollToTop) window.scrollTo({ top: 0, behavior: 'smooth' });
