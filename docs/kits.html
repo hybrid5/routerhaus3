@@ -1,3 +1,4 @@
+<!-- kits.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -279,6 +280,7 @@
           <label class="search" for="searchInput">
             <span class="sr-only">Search routers</span>
             <input type="text" id="searchInput" placeholder="Search by brand or model…" aria-label="Search routers">
+            <button type="button" class="mic" aria-label="Voice search"><i class="fa-solid fa-microphone"></i></button>
           </label>
           <button id="searchBtn" class="btn glass" type="button" aria-label="Run search">Search</button>
         </div>
@@ -316,11 +318,28 @@
           <span>Show recommendations</span>
         </label>
 
+        <label class="toggle">
+          <input type="checkbox" id="lowDataToggle" />
+          <span>Low Data Mode</span>
+        </label>
+
         <button id="openFiltersHeader" class="btn glass" type="button">Filters</button>
       </div>
 
+      <!-- Progress bar -->
+      <div class="progress-bar"><div id="progressFill" class="fill"></div></div>
+
+      <!-- Your Picks (personalized) -->
+      <section id="yourPicks" class="recommendations reveal" aria-live="polite" hidden>
+        <div class="section-head">
+          <h2>Your Picks</h2>
+          <small class="subtle">AI-tuned for your preferences</small>
+        </div>
+        <div id="picksGrid" class="product-grid"></div>
+      </section>
+
       <!-- Recommendations -->
-      <section id="recommendations" class="recommendations" aria-live="polite">
+      <section id="recommendations" class="recommendations reveal" aria-live="polite">
         <div class="section-head">
           <h2>Recommended for you</h2>
           <small id="recoNote" class="subtle"></small>
@@ -329,10 +348,10 @@
       </section>
 
       <!-- Pagination Top -->
-      <nav id="paginationTop" class="pagination" aria-label="Pagination top"></nav>
+      <nav id="paginationTop" class="pagination reveal" aria-label="Pagination top"></nav>
 
       <!-- Results -->
-      <section class="results" aria-label="Results">
+      <section class="results reveal" aria-label="Results">
         <div id="kitsStatus" class="sr-only" role="status" aria-live="polite">Loading kits…</div>
         <div id="kitsError" class="hide" role="alert"></div>
 
@@ -358,7 +377,7 @@
       </section>
 
       <!-- Pagination Bottom -->
-      <nav id="paginationBottom" class="pagination" aria-label="Pagination bottom"></nav>
+      <nav id="paginationBottom" class="pagination reveal" aria-label="Pagination bottom"></nav>
     </section>
   </main>
 
@@ -504,19 +523,39 @@
     </div>
   </dialog>
 
+  <!-- AI Chat Modal -->
+  <div id="chat-modal" class="chat-modal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="chat-content glass">
+      <header>
+        <h3>Network Advisor</h3>
+        <button class="close" aria-label="Close">&times;</button>
+      </header>
+      <div class="chat-messages"></div>
+      <form class="chat-input">
+        <input type="text" placeholder="e.g., What's best for a 3-floor home with gaming?" aria-label="Ask a question">
+        <button type="button" class="mic" aria-label="Voice input"><i class="fa-solid fa-microphone"></i></button>
+        <button type="submit" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
+      </form>
+      <p class="privacy subtle">Conversations processed locally. <a href="#" id="opt-out">Opt out of data persistence</a>.</p>
+    </div>
+  </div>
+
+  <!-- Floating Chat Button -->
+  <button id="chat-btn" class="chat-btn floating" aria-label="Open Network Advisor"><i class="fa-solid fa-message"></i> Ask Advisor</button>
+
   <!-- Card template -->
   <template id="cardTpl">
-    <article class="product glass" data-id="">
+    <article class="product glass" data-id="" itemscope itemtype="https://schema.org/Product">
       <div class="product-media">
-        <img loading="lazy" alt="" src="" onerror="this.style.display='none'">
+        <img loading="lazy" alt="" src="" onerror="this.style.display='none'" itemprop="image">
       </div>
       <header class="product-header">
-        <h4 class="title"></h4>
+        <h4 class="title" itemprop="name"></h4>
         <div class="chips line"></div>
       </header>
       <ul class="specs"></ul>
       <div class="priceRow">
-        <strong class="price"></strong>
+        <strong class="price" itemprop="offers" itemscope itemtype="https://schema.org/Offer"><span itemprop="priceCurrency" content="USD">$</span><span itemprop="price"></span></strong>
         <div class="ctaRow">
           <a class="btn small" target="_blank" rel="noopener">Buy</a>
           <button class="icon-btn compare-btn" title="Compare" type="button" aria-pressed="false">+</button>
