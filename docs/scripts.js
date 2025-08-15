@@ -1,96 +1,182 @@
-/* scripts.js - global site scripts */
+// ============================
+//   RouterHaus v5 – scripts.js
+//   Partials + global UI wiring
+//   Emits `partials:loaded`
+// ============================
+"use strict";
 
-// Inject partials (header/footer)
-async function loadPartial(mountId, url) {
-  const mount = document.getElementById(mountId);
-  if (!mount) return;
-  try {
-    const res = await fetch(url, { cache: "no-cache" });
-    mount.innerHTML = await res.text();
-  } catch (e) {
-    console.error(`Failed to load ${url}`, e);
+/* ---------- Utilities ---------- */
+const debounce = (fn, d = 200) => {
+  let t;
+  return (...a) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(null, a), d);
+  };
+};
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+/* ---------- Toast (lightweight) ---------- */
+function showToast(msg, type = "success") {
+  let c = document.getElementById("toast-container");
+  if (!c) {
+    c = document.createElement("div");
+    Object.assign(c.style, {
+      position: "fixed",
+      bottom: "1rem",
+      right: "1rem",
+      zIndex: "1200",
+      display: "flex",
+      flexDirection: "column",
+      gap: ".5rem",
+    });
+    c.id = "toast-container";
+    document.body.appendChild(c);
   }
+  const t = document.createElement("div");
+  t.textContent = msg;
+  const bg = type === "error" ? "var(--danger)" : type === "info" ? "var(--info)" : "var(--success)";
+  Object.assign(t.style, {
+    padding: "0.8rem 1.2rem",
+    borderRadius: "12px",
+    color: "#fff",
+    background: bg,
+    opacity: "0",
+    transform: "translateY(10px)",
+    transition: "all .25s ease",
+    boxShadow: "var(--shadow-sm)",
+  });
+  c.appendChild(t);
+  requestAnimationFrame(() => {
+    t.style.opacity = "1";
+    t.style.transform = "translateY(0)";
+  });
+  setTimeout(() => {
+    t.style.opacity = "0";
+    t.addEventListener("transitionend", () => t.remove());
+  }, 3000);
 }
 
-function initNavbarEffects() {
-  const navbar = document.getElementById('navbar');
-  if (!navbar) return;
-  const onScroll = () => {
-    if (window.scrollY > 50) navbar.classList.add('scrolled');
-    else navbar.classList.remove('scrolled');
-  };
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
+/* ---------- Partials ---------- */
+async function loadPartials() {
+  const headHolder = document.getElementById("header-placeholder");
+  if (headHolder) {
+    try {
+      const h = await fetch("header.html", { cache: "no-store" });
+      if (h.ok) headHolder.outerHTML = await h.text();
+    } catch {}
+  }
+  const footHolder = document.getElementById("footer-placeholder");
+  if (footHolder) {
+    try {
+      const f = await fetch("footer.html", { cache: "no-store" });
+      if (f.ok) footHolder.outerHTML = await f.text();
+    } catch {}
+  }
+  document.dispatchEvent(new CustomEvent("partials:loaded"));
 }
 
-function initMobileMenu() {
-  const btn = document.querySelector('.mobile-menu-btn');
-  const links = document.querySelector('.nav-links');
-  if (!(btn && links)) return;
+/* ---------- UI Wiring ---------- */
+function initUI() {
+  const header = document.querySelector(".navbar");
+  const hamburger = document.getElementById("hamburger-menu");
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebar-overlay");
+  const themeToggle = document.getElementById("theme-toggle");
 
-  const toggle = () => {
-    const active = links.classList.toggle('active');
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-expanded', String(active));
-    document.body.style.overflow = active ? 'hidden' : '';
-  };
-  btn.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
-  document.addEventListener('click', (e) => {
-    if (!links.contains(e.target) && !btn.contains(e.target)) {
-      links.classList.remove('active'); btn.classList.remove('active');
-      btn.setAttribute('aria-expanded', 'false'); document.body.style.overflow = '';
+  /* Sticky header elevation */
+  if (header) {
+    const onScroll = debounce(() => {
+      const active = (window.scrollY || document.documentElement.scrollTop) > 50;
+      header.classList.toggle("elevated", active);
+    }, 60);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+  }
+
+  /* Sidebar (mobile nav) + body lock */
+  if (hamburger && sidebar && overlay) {
+    const lock = (on) => {
+      document.documentElement.style.overflow = on ? "hidden" : "";
+      document.body.style.overflow = on ? "hidden" : "";
+    };
+    const isOpen = () => sidebar.classList.contains("active");
+    const toggleSidebar = (force) => {
+      const open = typeof force === "boolean" ? force : !isOpen();
+      sidebar.classList.toggle("active", open);
+      hamburger.classList.toggle("active", open);
+      overlay.classList.toggle("active", open);
+      hamburger.setAttribute("aria-expanded", String(open));
+      sidebar.setAttribute("aria-hidden", String(!open));
+      lock(open);
+    };
+    hamburger.addEventListener("click", () => toggleSidebar());
+    overlay.addEventListener("click", () => toggleSidebar(false));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && isOpen()) toggleSidebar(false);
+    });
+  }
+
+  /* Delegate in-page smooth scroll (works with/without sidebar) */
+  document.addEventListener("click", (e) => {
+    const link = e.target.closest('a[href^="#"]');
+    if (!link) return;
+    const href = link.getAttribute("href");
+    const target = href ? document.querySelector(href) : null;
+    if (!target) return;
+    e.preventDefault();
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    // close sidebar if open
+    if (document.getElementById("sidebar")?.classList.contains("active")) {
+      document.getElementById("hamburger-menu")?.click();
     }
+  });
+
+  /* Theme toggle — respects system; persists override */
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
+  let userOverride = localStorage.getItem("themeOverride");
+  const applyTheme = (mode, silent = false) => {
+    document.documentElement.dataset.theme = mode;
+    if (themeToggle) themeToggle.textContent = mode === "dark" ? "Light Mode" : "Dark Mode";
+    if (!silent) showToast(mode === "dark" ? "Dark mode on" : "Light mode on", "info");
+  };
+  const initialAttr = document.documentElement.getAttribute("data-theme");
+  const initialMode = userOverride || initialAttr || (prefersDark.matches ? "dark" : "light");
+  applyTheme(initialMode, true);
+  prefersDark.addEventListener("change", (e) => {
+    if (!userOverride) applyTheme(e.matches ? "dark" : "light", true);
+  });
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      const newMode = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      userOverride = newMode;
+      localStorage.setItem("themeOverride", newMode);
+      applyTheme(newMode, false);
+    });
+  }
+
+  /* Forward mobile CTA clicks to header quiz button (moved from header inline script) */
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-open-quiz]");
+    if (!btn) return;
+    const t = document.getElementById("openQuiz");
+    if (t) t.click();
+  });
+
+  /* Simple accordion (any .accordion-item) */
+  $$(".accordion-item").forEach((item) => {
+    item.addEventListener("click", () => item.classList.toggle("open"));
+    item.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        item.classList.toggle("open");
+      }
+    });
+    item.setAttribute("tabindex", "0");
   });
 }
 
-function initRevealObserver() {
-  const options = { threshold: 0.1, rootMargin: '0px 0px -50px 0px' };
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-        observer.unobserve(entry.target);
-      }
-    });
-  }, options);
-
-  document.querySelectorAll('.fade-in, .slide-in-left, .slide-in-right, .scale-in')
-    .forEach((el) => observer.observe(el));
-}
-
-// Notification system (used across pages)
-function showNotification(message, type = 'info') {
-  const notification = document.createElement('div');
-  notification.className = `toast ${type}`;
-  notification.innerHTML = `
-    <i class="${{ success: 'fas fa-check-circle', error: 'fas fa-exclamation-circle', info: 'fas fa-info-circle' }[type] || 'fas fa-info-circle'}"></i>
-    <span>${message}</span>
-  `;
-  document.body.appendChild(notification);
-  requestAnimationFrame(() => notification.classList.add('in'));
-  setTimeout(() => {
-    notification.classList.remove('in');
-    setTimeout(() => notification.remove(), 300);
-  }, 4000);
-}
-window.showNotification = showNotification;
-
-window.addEventListener('DOMContentLoaded', async () => {
-  // Load partials first, then init nav
-  await Promise.all([
-    loadPartial('header-include', document.getElementById('header-include')?.dataset.include || '/partials/header.html'),
-    loadPartial('footer-include', document.getElementById('footer-include')?.dataset.include || '/partials/footer.html'),
-  ]);
-  initNavbarEffects();
-  initMobileMenu();
-  initRevealObserver();
+/* ---------- DOM Ready ---------- */
+document.addEventListener("DOMContentLoaded", async () => {
+  await loadPartials();
+  initUI();
 });
-
-window.addEventListener('load', () => {
-  document.body.classList.add('loaded');
-  // Stagger hero entrance
-  const heroEls = document.querySelectorAll('.hero .fade-in, .hero .scale-in');
-  heroEls.forEach((el, i) => setTimeout(() => el.classList.add('visible'), i * 100));
-});
-
-console.log('RouterHaus v3.0 - Ultra Modern Edition Loaded 🚀');
