@@ -1,114 +1,115 @@
-/* home.js — page-specific interactions */
+/* ============================
+   RouterHaus – home.js
+   Page-only behavior for index.html
+============================ */
+(() => {
+  "use strict";
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
-// Particle system
-function createParticles() {
-  const container = document.getElementById('particles');
-  if (!container) return;
-  const particleCount = 15;
-  for (let i = 0; i < particleCount; i++) {
-    setTimeout(() => createParticle(container), i * 1000);
+  /* ---- Persona quick chips → route to kits with mapped filters ---- */
+  function wireQuickChips() {
+    const chips = $$(".persona-chips .chip");
+    if (!chips.length) return;
+
+    const map = {
+      apt: "coverage=Apartment%2FSmall&recos=1",
+      large: "coverage=Large%2FMulti-floor&mesh=Mesh-ready&recos=1",
+      wfh: "use=Work%20from%20Home&recos=1",
+      gaming: "use=Gaming&wan=2.5G&recos=1",
+    };
+
+    chips.forEach((btn) => {
+      if (!btn.getAttribute("type")) btn.setAttribute("type", "button");
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.qpick;
+        const qs = map[key] || "quiz=1";
+        window.location.href = `kits.html?${qs}`;
+      });
+    });
   }
-}
-function createParticle(container) {
-  const particle = document.createElement('div');
-  particle.className = 'particle';
-  particle.style.left = Math.random() * 100 + '%';
-  particle.style.animationDelay = Math.random() * 15 + 's';
-  particle.style.animationDuration = (15 + Math.random() * 10) + 's';
-  container.appendChild(particle);
-  setTimeout(() => particle.remove(), 25000);
-}
 
-// Persona chips
-function initPersonaChips() {
-  const chips = document.querySelectorAll('.persona-chip');
-  chips.forEach((chip) => {
-    chip.addEventListener('click', () => {
-      chips.forEach((c) => c.classList.remove('active'));
-      chip.classList.add('active');
-      chip.style.transform = 'scale(0.95)';
-      chip.style.background = 'var(--surface-elevated)';
-      chip.style.borderColor = 'var(--border-accent)';
-      setTimeout(() => { chip.style.transform = 'translateY(-2px)'; }, 100);
-      const persona = chip.dataset.persona;
-      console.log('Selected persona:', persona);
-      showNotification("Preference saved! We'll customize your recommendations.", 'success');
+  /* ---- Reveal animations on scroll (aligns with .reveal/.in-view in CSS) ---- */
+  function revealify() {
+    const els = $$(".reveal");
+    if (!els.length || !("IntersectionObserver" in window)) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((en) => {
+          if (en.isIntersecting) {
+            en.target.classList.add("in-view");
+            io.unobserve(en.target);
+          }
+        });
+      },
+      { rootMargin: "0px 0px -10% 0px", threshold: 0.1 }
+    );
+    els.forEach((el) => io.observe(el));
+  }
+
+  /* ---- Perf-friendly parallax for hero-bg ---- */
+  function parallaxHero() {
+    const bg = $(".index-hero .hero-bg");
+    if (!bg) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY * 0.18;
+        bg.style.transform = `translate3d(0, ${y}px, 0)`;
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+  }
+
+  /* ---- Gentle tilt on value/product cards (capped) ---- */
+  function tiltCards() {
+    const cards = $$(".value-card, .product");
+    if (!cards.length) return;
+    cards.forEach((card) => {
+      let rAF = 0;
+      const onMove = (e) => {
+        const rect = card.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = (e.clientX - cx) / rect.width;
+        const dy = (e.clientY - cy) / rect.height;
+        cancelAnimationFrame(rAF);
+        rAF = requestAnimationFrame(() => {
+          card.style.transform =
+            `perspective(800px) rotateX(${(-dy * 2).toFixed(2)}deg) ` + // capped
+            `rotateY(${(dx * 2).toFixed(2)}deg) translateY(-4px)`;
+        });
+      };
+      const reset = () => {
+        cancelAnimationFrame(rAF);
+        card.style.transform = "";
+      };
+      card.addEventListener("mousemove", onMove);
+      card.addEventListener("mouseleave", reset);
+      card.addEventListener("blur", reset, true);
     });
-    chip.addEventListener('mouseenter', () => {
-      chip.style.transform = 'translateY(-4px) rotateY(5deg)'; chip.style.boxShadow = 'var(--shadow-medium)';
-    });
-    chip.addEventListener('mouseleave', () => {
-      if (!chip.classList.contains('active')) {
-        chip.style.transform = 'translateY(-2px) rotateY(0deg)'; chip.style.boxShadow = 'var(--shadow-soft)';
-      }
-    });
+  }
+
+  /* ---- Hooks after header/footer partials (future use) ---- */
+  function wireHeaderHooks() {
+    // Example: const quizBtn = document.getElementById('openQuiz');
+  }
+
+  /* ---- Init ---- */
+  document.addEventListener("DOMContentLoaded", () => {
+    wireQuickChips();
+    revealify();
+    parallaxHero();
+    tiltCards();
   });
-}
 
-// FAQ
-function toggleFaq(button) {
-  const item = button.parentElement;
-  const isOpen = item.classList.contains('open');
-  document.querySelectorAll('.faq-item').forEach((i) => i !== item && i.classList.remove('open'));
-  item.classList.toggle('open');
-  if (!isOpen) setTimeout(() => item.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
-}
-window.toggleFaq = toggleFaq;
-
-// CTA loading
-function startRecommendation() {
-  const buttons = document.querySelectorAll('.btn-primary');
-  buttons.forEach((btn) => {
-    const original = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
-    btn.style.pointerEvents = 'none';
-    setTimeout(() => {
-      btn.innerHTML = original;
-      btn.style.pointerEvents = 'auto';
-      showNotification('Redirecting to recommendation quiz...', 'info');
-      // location.href = '/quiz.html'; // enable when ready
-    }, 2000);
-  });
-}
-window.startRecommendation = startRecommendation;
-
-// Product & Feature card hover effects
-function initInteractiveCards() {
-  document.querySelectorAll('.product-card').forEach((card) => {
-    card.addEventListener('mouseenter', () => {
-      card.style.transform = 'translateY(-8px) rotateX(5deg) rotateY(2deg)';
-      card.style.boxShadow = 'var(--shadow-strong)';
-    });
-    card.addEventListener('mousemove', (e) => {
-      const r = card.getBoundingClientRect();
-      const x = e.clientX - r.left, y = e.clientY - r.top;
-      const rotateX = (y - r.height / 2) / 10, rotateY = (r.width / 2 - x) / 10;
-      card.style.transform = `translateY(-8px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
-    });
-    card.addEventListener('mouseleave', () => {
-      card.style.transform = 'translateY(0) rotateX(0deg) rotateY(0deg)';
-      card.style.boxShadow = 'var(--shadow-soft)';
-    });
-  });
-
-  document.querySelectorAll('.feature-card').forEach((card) => {
-    card.addEventListener('click', () => {
-      card.style.transform = 'scale(0.98)';
-      setTimeout(() => { card.style.transform = 'translateY(-8px) scale(1)'; }, 100);
-      showNotification('Learn more about this feature...', 'info');
-    });
-  });
-}
-
-// Trust logo shimmer kick
-function initTrustLogoShimmer() {
-  const logos = document.querySelectorAll('.trust-logo');
-  logos.forEach((logo, i) => setTimeout(() => { logo.style.animation = 'shimmer 2s ease-in-out'; }, i * 200));
-}
-
-window.addEventListener('DOMContentLoaded', () => {
-  createParticles();
-  initPersonaChips();
-  initInteractiveCards();
-  initTrustLogoShimmer();
-});
+  document.addEventListener("partials:loaded", wireHeaderHooks);
+})();
