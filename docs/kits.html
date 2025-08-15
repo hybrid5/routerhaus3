@@ -1,4 +1,3 @@
-<!-- kits.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,6 +7,10 @@
   <meta name="description" content="Filter and compare the best router kits for apartments, homes, and offices." />
   <meta name="color-scheme" content="light dark" />
   <link rel="preload" href="kits.json" as="fetch" type="application/json" />
+
+  <!-- Preload modules for faster boot -->
+  <link rel="modulepreload" href="assets/js/kits.js" />
+  <link rel="modulepreload" href="assets/js/quiz-modal.js" />
 
   <!-- Theme (sync to system; no FOUC) -->
   <script>
@@ -279,8 +282,14 @@
         <div class="command-bar glass" role="region" aria-label="Search">
           <label class="search" for="searchInput">
             <span class="sr-only">Search routers</span>
-            <input type="text" id="searchInput" placeholder="Search by brand or model…" aria-label="Search routers">
-            <button type="button" class="mic" aria-label="Voice search"><i class="fa-solid fa-microphone"></i></button>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Search by brand or model…"
+              aria-label="Search routers"
+              autocomplete="off"
+              enterkeyhint="search"
+            >
           </label>
           <button id="searchBtn" class="btn glass" type="button" aria-label="Run search">Search</button>
         </div>
@@ -318,28 +327,11 @@
           <span>Show recommendations</span>
         </label>
 
-        <label class="toggle">
-          <input type="checkbox" id="lowDataToggle" />
-          <span>Low Data Mode</span>
-        </label>
-
         <button id="openFiltersHeader" class="btn glass" type="button">Filters</button>
       </div>
 
-      <!-- Progress bar -->
-      <div class="progress-bar"><div id="progressFill" class="fill"></div></div>
-
-      <!-- Your Picks (personalized) -->
-      <section id="yourPicks" class="recommendations reveal" aria-live="polite" hidden>
-        <div class="section-head">
-          <h2>Your Picks</h2>
-          <small class="subtle">AI-tuned for your preferences</small>
-        </div>
-        <div id="picksGrid" class="product-grid"></div>
-      </section>
-
       <!-- Recommendations -->
-      <section id="recommendations" class="recommendations reveal" aria-live="polite">
+      <section id="recommendations" class="recommendations" aria-live="polite">
         <div class="section-head">
           <h2>Recommended for you</h2>
           <small id="recoNote" class="subtle"></small>
@@ -348,10 +340,10 @@
       </section>
 
       <!-- Pagination Top -->
-      <nav id="paginationTop" class="pagination reveal" aria-label="Pagination top"></nav>
+      <nav id="paginationTop" class="pagination" aria-label="Pagination top"></nav>
 
       <!-- Results -->
-      <section class="results reveal" aria-label="Results">
+      <section class="results" aria-label="Results">
         <div id="kitsStatus" class="sr-only" role="status" aria-live="polite">Loading kits…</div>
         <div id="kitsError" class="hide" role="alert"></div>
 
@@ -359,7 +351,7 @@
         <div id="skeletonGrid" class="product-grid skeletons" aria-hidden="true"></div>
 
         <!-- Real results -->
-        <div id="kitResults" class="product-grid" aria-busy="false"></div>
+        <div id="kitResults" class="product-grid" aria-busy="false" aria-describedby="kitsStatus"></div>
 
         <!-- Empty state -->
         <div id="emptyState" class="empty hide" role="note" aria-live="polite">
@@ -377,18 +369,18 @@
       </section>
 
       <!-- Pagination Bottom -->
-      <nav id="paginationBottom" class="pagination reveal" aria-label="Pagination bottom"></nav>
+      <nav id="paginationBottom" class="pagination" aria-label="Pagination bottom"></nav>
     </section>
   </main>
 
   <!-- Sticky Compare trigger (mobile/any) -->
-  <button id="compareSticky" class="compare-sticky" hidden aria-controls="compareDrawer">
+  <button id="compareSticky" class="compare-sticky" hidden aria-controls="compareDrawer" aria-expanded="false">
     Compare (<span id="compareCount">0</span>)
   </button>
 
   <!-- Compare bar (mobile) -->
   <aside id="compareDrawer" class="compare glass" aria-live="polite" hidden role="dialog" aria-label="Compare">
-    <div class="compare-header">
+    <div class="compare-header" tabindex="-1">
       <strong>Compare</strong>
       <button id="clearCompareMobile" class="btn small ghost" type="button">Clear</button>
     </div>
@@ -432,8 +424,8 @@
               <option value="1–5">1-5 (just basics, like a phone and laptop)</option>
               <option value="6–15">6-15 (family with phones, TVs, and a few smart devices)</option>
               <option value="16–30">16-30 (busy home with streaming and gaming)</option>
-              <option value="31–60">31-60 (smart home with lights, cameras, etc.)</option>
-              <option value="61–100">61-100 (lots of gadgets, like in an office)</option>
+              <option value="31–60">31–60 (smart home with lights, cameras, etc.)</option>
+              <option value="61–100">61–100 (lots of gadgets, like in an office)</option>
               <option value="100+">100+ (heavy use, pros or big households)</option>
               <option value="">I'm not sure – average for most homes</option>
             </select>
@@ -523,39 +515,19 @@
     </div>
   </dialog>
 
-  <!-- AI Chat Modal -->
-  <div id="chat-modal" class="chat-modal" aria-hidden="true" role="dialog" aria-modal="true">
-    <div class="chat-content glass">
-      <header>
-        <h3>Network Advisor</h3>
-        <button class="close" aria-label="Close">&times;</button>
-      </header>
-      <div class="chat-messages"></div>
-      <form class="chat-input">
-        <input type="text" placeholder="e.g., What's best for a 3-floor home with gaming?" aria-label="Ask a question">
-        <button type="button" class="mic" aria-label="Voice input"><i class="fa-solid fa-microphone"></i></button>
-        <button type="submit" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
-      </form>
-      <p class="privacy subtle">Conversations processed locally. <a href="#" id="opt-out">Opt out of data persistence</a>.</p>
-    </div>
-  </div>
-
-  <!-- Floating Chat Button -->
-  <button id="chat-btn" class="chat-btn floating" aria-label="Open Network Advisor"><i class="fa-solid fa-message"></i> Ask Advisor</button>
-
   <!-- Card template -->
   <template id="cardTpl">
-    <article class="product glass" data-id="" itemscope itemtype="https://schema.org/Product">
+    <article class="product glass" data-id="">
       <div class="product-media">
-        <img loading="lazy" alt="" src="" onerror="this.style.display='none'" itemprop="image">
+        <img loading="lazy" alt="" src="" onerror="this.style.display='none'">
       </div>
       <header class="product-header">
-        <h4 class="title" itemprop="name"></h4>
+        <h4 class="title"></h4>
         <div class="chips line"></div>
       </header>
       <ul class="specs"></ul>
       <div class="priceRow">
-        <strong class="price" itemprop="offers" itemscope itemtype="https://schema.org/Offer"><span itemprop="priceCurrency" content="USD">$</span><span itemprop="price"></span></strong>
+        <strong class="price"></strong>
         <div class="ctaRow">
           <a class="btn small" target="_blank" rel="noopener">Buy</a>
           <button class="icon-btn compare-btn" title="Compare" type="button" aria-pressed="false">+</button>
