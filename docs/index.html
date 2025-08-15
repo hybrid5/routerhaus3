@@ -1,3 +1,6 @@
+<!-- ===========================
+     RouterHaus v2 — index.html
+     =========================== -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,256 +8,202 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="RouterHaus – AI-powered router recommendations for every space, from studio flats to multi-floor estates and offices." />
   <meta name="color-scheme" content="light dark" />
-  <title>RouterHaus - Next Generation Network Solutions</title>
+  <title>RouterHaus</title>
 
-  <!-- Fonts & Icons -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <!-- Fonts & Styles -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="main.css" />
+  <link rel="stylesheet" href="assets/css/home.css" />
+
+  <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-
-  <!-- Styles -->
-  <link rel="stylesheet" href="main.css">
-  <link rel="stylesheet" href="/assets/css/home.css">
 </head>
 <body>
-  <!-- Includes -->
-  <div id="header-include" data-include="/partials/header.html"></div>
+  <!-- Header partial mounts BEFORE main to avoid CLS -->
+  <div id="header-placeholder" data-partial="header.html"></div>
 
-  <!-- Hero Section -->
-  <section class="hero">
-    <div class="particles" id="particles"></div>
+  <main>
+    <!-- ===== HERO ===== -->
+    <section class="hero index-hero">
+      <!-- Parallax bg layer for perf-friendly motion -->
+      <div class="hero-bg" aria-hidden="true"></div>
 
-    <div class="hero-container">
-      <div class="hero-content fade-in">
-        <h1>
-          Lightning-Fast Wi-Fi,<br>
-          <span class="gradient-text">Zero Guesswork</span>
-        </h1>
-        <p class="hero-subtitle">
-          AI-powered router recommendations tailored to your space, devices, and internet plan. 
-          Get professional-grade networks designed for real life.
-        </p>
-
-        <div class="hero-actions">
-          <button class="btn-primary" onclick="startRecommendation()">
-            Start Recommendation <i class="fas fa-arrow-right"></i>
-          </button>
-          <a href="/consult.html" class="btn-secondary">
-            Talk to an Engineer <i class="fas fa-user-tie"></i>
-          </a>
-        </div>
-
-        <div class="hero-stats">
-          <div class="stat-item">
-            <i class="fas fa-check-circle"></i>
-            <span>3-step kit finder</span>
+      <div class="container hero-grid">
+        <div class="hero-copy reveal">
+          <span class="eyebrow">AI-tuned network plans</span>
+          <h1>Lightning-Fast Wi-Fi, <span class="grad">Zero Guesswork</span></h1>
+          <p class="lede">Answer a few questions and get a dialed-in setup — sized to your space, devices, and plan speed.</p>
+          <div class="hero-actions">
+            <a href="kits.html?quiz=1" class="btn">Start Recommendation</a>
+            <a href="consult.html" class="btn-secondary">Talk to an Engineer</a>
           </div>
-          <div class="stat-item">
-            <i class="fas fa-bolt"></i>
-            <span>Multi-gig ready</span>
+          <ul class="stat-pills">
+            <li><i class="fa-solid fa-list-check" aria-hidden="true"></i> 3-step kit finder</li>
+            <li><i class="fa-solid fa-gauge-high" aria-hidden="true"></i> Multi-gig ready</li>
+            <li><i class="fa-solid fa-sitemap" aria-hidden="true"></i> Mesh for whole-home</li>
+          </ul>
+        </div>
+
+        <aside class="hero-card glass reveal">
+          <h3>What best describes you?</h3>
+          <div class="persona-chips">
+            <button class="chip" data-qpick="apt"><i class="fa-solid fa-city"></i> Apartment / Condo</button>
+            <button class="chip" data-qpick="large"><i class="fa-solid fa-house-chimney"></i> Large Home</button>
+            <button class="chip" data-qpick="wfh"><i class="fa-solid fa-briefcase"></i> Work from Home</button>
+            <button class="chip" data-qpick="gaming"><i class="fa-solid fa-gamepad"></i> Gaming</button>
           </div>
-          <div class="stat-item">
-            <i class="fas fa-network-wired"></i>
-            <span>Mesh for whole-home</span>
+          <p class="mini subtle"><i class="fa-regular fa-lightbulb"></i> We’ll pre-apply the right filters — tweak anytime.</p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===== TRUST ===== -->
+    <section class="trust">
+      <div class="container">
+        <div class="trust-head reveal">
+          <span class="eyebrow">Trusted designs</span>
+        </div>
+        <div class="trust-logos reveal" aria-label="Vendors we work with">
+          <span class="pill">UniFi</span>
+          <span class="pill">Aruba</span>
+          <span class="pill">TP-Link</span>
+          <span class="pill">ASUS</span>
+          <span class="pill">Synology</span>
+          <span class="pill">MikroTik</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== HOW IT WORKS ===== -->
+    <section class="steps">
+      <div class="container">
+        <header class="section-head reveal">
+          <h2>How it works</h2>
+          <p class="subtle">From quiz to install — clarity at every step.</p>
+        </header>
+
+        <div class="cards cards-3">
+          <article class="card step reveal">
+            <div class="step-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+            <h3>1) Quick quiz</h3>
+            <p>Tell us about your space, devices, and plan speed. We turn that into real-world requirements.</p>
+          </article>
+
+          <article class="card step reveal">
+            <div class="step-icon"><i class="fa-solid fa-sliders"></i></div>
+            <h3>2) Compare picks</h3>
+            <p>Filter by Wi-Fi gen, mesh, WAN tier, and price. Add up to four to compare.</p>
+          </article>
+
+          <article class="card step reveal">
+            <div class="step-icon"><i class="fa-solid fa-diagram-project"></i></div>
+            <h3>3) Deploy</h3>
+            <p>Use our guides or book an engineer. We can stage, tune, and hand off remotely or on-site.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FEATURED PICKS ===== -->
+    <section class="product-grid">
+      <div class="container">
+        <header class="section-head reveal">
+          <h2>Great Consumer Picks</h2>
+          <p class="subtle">Fast, reliable, and simple to manage.</p>
+        </header>
+
+        <div class="product-row">
+          <article class="product glass reveal">
+            <div class="product-media">
+              <img src="Deco-BE25.png" alt="TP-Link Deco BE25" />
+            </div>
+            <h4>TP-Link Deco BE25</h4>
+            <p class="tag">Apartments & small homes</p>
+            <p class="meta">≈ 6,600 sq ft • $249.99</p>
+            <a class="btn-secondary" href="kits.html?coverage=Apartment/Small&recos=1">View options</a>
+          </article>
+
+          <article class="product glass reveal">
+            <div class="product-media">
+              <img src="google-nest-wi-fi.png" alt="Google Nest Wi-Fi Pro 3-pack" />
+            </div>
+            <h4>Google Nest Wi-Fi Pro (3-pack)</h4>
+            <p class="tag">Seamless setup</p>
+            <p class="meta">≈ 6,600 sq ft • $399.99</p>
+            <a class="btn-secondary" href="kits.html?mesh=Mesh-ready&recos=1">View options</a>
+          </article>
+
+          <article class="product glass reveal">
+            <div class="product-media">
+              <img src="ASUS-BE98.png" alt="ASUS ROG GT-BE98 Pro" />
+            </div>
+            <h4>ASUS ROG GT-BE98 Pro</h4>
+            <p class="tag">Gaming & performance</p>
+            <p class="meta">≈ 4,800 sq ft • $629.99</p>
+            <a class="btn-secondary" href="kits.html?use=Gaming&wan=2.5G&recos=1">View options</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ENTERPRISE STRIP ===== -->
+    <section class="enterprise-band">
+      <div class="container band-grid">
+        <div class="band-copy reveal">
+          <h2>For businesses & large properties</h2>
+          <p class="subtle">Multi-floor roaming, VLAN separation, multi-gig backbones, and controller-based tuning.</p>
+        </div>
+        <div class="band-ctas reveal">
+          <a class="btn" href="consult.html">Enterprise / Large Home Consult</a>
+          <a class="btn-secondary" href="kits.html?mesh=Mesh-ready&coverage=Large/Multi-floor&recos=1">See mesh systems</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FAQ ===== -->
+    <section id="faq" class="faq">
+      <div class="container">
+        <h2 class="faq-title reveal">FAQ</h2>
+
+        <div class="accordion">
+          <div class="accordion-item reveal">
+            <h4>Do you support on-site installs?</h4><span>+</span>
+            <p>Yes. We can coordinate on-site installation, validation, and handover. Remote staging and controller setup are also available.</p>
           </div>
-        </div>
-      </div>
 
-      <div class="hero-card scale-in">
-        <h3>What best describes you?</h3>
-        <div class="persona-grid">
-          <div class="persona-chip" data-persona="apartment">
-            <i class="fas fa-building"></i>
-            <span>Apartment</span>
+          <div class="accordion-item reveal">
+            <h4>Will the quiz work for office spaces?</h4><span>+</span>
+            <p>It’s a great start for sizing and features. For multi-tenant or multi-AP scenarios, book a consult and we’ll design the topology.</p>
           </div>
-          <div class="persona-chip" data-persona="house">
-            <i class="fas fa-home"></i>
-            <span>Large Home</span>
-          </div>
-          <div class="persona-chip" data-persona="office">
-            <i class="fas fa-briefcase"></i>
-            <span>Work from Home</span>
-          </div>
-          <div class="persona-chip" data-persona="gaming">
-            <i class="fas fa-gamepad"></i>
-            <span>Gaming</span>
-          </div>
-        </div>
-        <div class="hero-card-hint">
-          <i class="fas fa-lightbulb"></i>
-          <span>We'll pre-apply the right filters — tweak anytime.</span>
-        </div>
-      </div>
-    </div>
-  </section>
 
-  <!-- Trust Section -->
-  <section class="trust-section">
-    <div class="trust-container">
-      <div class="trust-title fade-in">Trusted by professionals worldwide</div>
-      <div class="trust-logos fade-in">
-        <div class="trust-logo">UniFi</div>
-        <div class="trust-logo">Aruba</div>
-        <div class="trust-logo">TP-Link</div>
-        <div class="trust-logo">ASUS</div>
-        <div class="trust-logo">Synology</div>
-        <div class="trust-logo">MikroTik</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Features Section -->
-  <section class="features-section">
-    <div class="features-container">
-      <div class="section-header fade-in">
-        <div class="section-eyebrow">How it works</div>
-        <h2 class="section-title">From Quiz to Install</h2>
-        <p class="section-subtitle">Clarity at every step of your network journey</p>
-      </div>
-
-      <div class="features-grid">
-        <div class="feature-card fade-in">
-          <div class="feature-icon"><i class="fas fa-magic"></i></div>
-          <h3>Smart Quiz</h3>
-          <p>Tell us about your space, devices, and internet plan. Our AI turns that into real-world network requirements with precision.</p>
-        </div>
-
-        <div class="feature-card fade-in">
-          <div class="feature-icon"><i class="fas fa-sliders-h"></i></div>
-          <h3>Compare & Filter</h3>
-          <p>Explore options by Wi-Fi generation, mesh capability, WAN speed, and budget. Compare up to four solutions side-by-side.</p>
-        </div>
-
-        <div class="feature-card fade-in">
-          <div class="feature-icon"><i class="fas fa-rocket"></i></div>
-          <h3>Deploy & Optimize</h3>
-          <p>Use our guides or book an engineer. We handle staging, tuning, and handoff — remotely or on-site.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Products Section -->
-  <section class="products-section">
-    <div class="products-container">
-      <div class="section-header fade-in">
-        <div class="section-eyebrow">Featured solutions</div>
-        <h2 class="section-title">Perfect for Every Space</h2>
-        <p class="section-subtitle">Fast, reliable, and beautifully simple to manage</p>
-      </div>
-
-      <div class="products-grid">
-        <div class="product-card fade-in">
-          <div class="product-image"><i class="fas fa-wifi"></i></div>
-          <h4>TP-Link Deco BE25</h4>
-          <div class="product-tag">Apartments & Small Homes</div>
-          <div class="product-meta">≈ 6,600 sq ft coverage • $249.99</div>
-          <a href="/kits.html#be25" class="product-cta">View Options</a>
-        </div>
-
-        <div class="product-card fade-in">
-          <div class="product-image"><i class="fas fa-home"></i></div>
-          <h4>Google Nest Wi-Fi Pro</h4>
-          <div class="product-tag">Seamless Setup</div>
-          <div class="product-meta">≈ 6,600 sq ft coverage • $399.99</div>
-          <a href="/kits.html#nest-pro" class="product-cta">View Options</a>
-        </div>
-
-        <div class="product-card fade-in">
-          <div class="product-image"><i class="fas fa-gamepad"></i></div>
-          <h4>ASUS ROG GT-BE98 Pro</h4>
-          <div class="product-tag">Gaming & Performance</div>
-          <div class="product-meta">≈ 4,800 sq ft coverage • $629.99</div>
-          <a href="/kits.html#gt-be98" class="product-cta">View Options</a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Enterprise Section -->
-  <section class="enterprise-section">
-    <div class="enterprise-container">
-      <div class="enterprise-content slide-in-left">
-        <h2>Enterprise & Large Properties</h2>
-        <p>Multi-floor roaming, VLAN separation, multi-gig backbones, and controller-based tuning for businesses and expansive homes.</p>
-        <div class="enterprise-actions">
-          <a href="/consult.html" class="btn-primary">Schedule Consultation</a>
-          <a href="/enterprise.html" class="btn-secondary">View Enterprise Solutions</a>
-        </div>
-      </div>
-      <div class="slide-in-right">
-        <div class="hero-card">
-          <h3>Enterprise Features</h3>
-          <div style="display:flex;flex-direction:column;gap:1rem;margin-top:1rem;">
-            <div class="enterprise-check"><i class="fas fa-check"></i><span>Centralized Management</span></div>
-            <div class="enterprise-check"><i class="fas fa-check"></i><span>VLAN Segmentation</span></div>
-            <div class="enterprise-check"><i class="fas fa-check"></i><span>Advanced Security</span></div>
-            <div class="enterprise-check"><i class="fas fa-check"></i><span>Professional Installation</span></div>
+          <div class="accordion-item reveal">
+            <h4>Do you only recommend one brand?</h4><span>+</span>
+            <p>No — we’re vendor-agnostic. We’ll suggest the right gear for your goals, scale, and environment.</p>
           </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- FAQ Section -->
-  <section class="faq-section">
-    <div class="faq-container">
-      <div class="section-header fade-in">
-        <div class="section-eyebrow">Questions</div>
-        <h2 class="section-title">Frequently Asked</h2>
-      </div>
-
-      <div class="faq-list">
-        <div class="faq-item fade-in">
-          <button class="faq-question" onclick="toggleFaq(this)">
-            Do you support on-site installations?
-            <i class="fas fa-plus faq-icon"></i>
-          </button>
-          <div class="faq-answer">
-            Yes. We can coordinate on-site installation, validation, and handover. Remote staging and controller setup are also available for a seamless experience.
-          </div>
-        </div>
-
-        <div class="faq-item fade-in">
-          <button class="faq-question" onclick="toggleFaq(this)">
-            Will the quiz work for office spaces?
-            <i class="fas fa-plus faq-icon"></i>
-          </button>
-          <div class="faq-answer">
-            It's a great starting point for sizing and features. For multi-tenant or complex multi-AP scenarios, we recommend booking a consultation for custom topology design.
-          </div>
-        </div>
-
-        <div class="faq-item fade-in">
-          <button class="faq-question" onclick="toggleFaq(this)">
-            Do you only recommend one brand?
-            <i class="fas fa-plus faq-icon"></i>
-          </button>
-          <div class="faq-answer">
-            No — we're completely vendor-agnostic. We recommend the right gear for your specific goals, scale, and environment, regardless of manufacturer.
+    <!-- ===== CTA ===== -->
+    <section class="footer-cta" id="start">
+      <div class="container">
+        <div class="cta-inner reveal">
+          <h2>Design Your Network</h2>
+          <p>From a studio flat to a full campus — we’ve got you covered.</p>
+          <div class="hero-actions">
+            <a href="kits.html?quiz=1" class="btn">Start Matching →</a>
+            <a href="consult.html" class="btn-secondary">Enterprise Consult</a>
           </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
+  </main>
 
-  <!-- Final CTA Section -->
-  <section class="final-cta-section">
-    <div class="final-cta-container fade-in">
-      <h2>Design Your Perfect Network</h2>
-      <p>From studio apartments to enterprise campuses — we've got you covered.</p>
-      <div class="hero-actions">
-        <button class="btn-primary" onclick="startRecommendation()">
-          Start Matching <i class="fas fa-arrow-right"></i>
-        </button>
-        <a href="/consult.html" class="btn-secondary">Enterprise Consultation</a>
-      </div>
-    </div>
-  </section>
-
-  <div id="footer-include" data-include="/partials/footer.html"></div>
+  <!-- Footer partial -->
+  <div id="footer-placeholder" data-partial="footer.html"></div>
 
   <!-- Scripts -->
   <script src="scripts.js" defer></script>
-  <script src="/assets/js/home.js" defer></script>
+  <script type="module" src="assets/js/home.js"></script>
 </body>
 </html>
