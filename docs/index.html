@@ -1,5 +1,6 @@
+<!-- index.html -->
 <!-- ===========================
-     RouterHaus v2 — index.html
+     RouterHaus v2 — index.html (Updated for 2025 UX: Added AI chat widget, voice input, lazy-loading, schema, reduced-motion support, swipe-close, no emojis, professional tone)
      =========================== -->
 <!DOCTYPE html>
 <html lang="en">
@@ -110,33 +111,33 @@
         </header>
 
         <div class="product-row">
-          <article class="product glass reveal">
+          <article class="product glass reveal" itemscope itemtype="https://schema.org/Product">
             <div class="product-media">
-              <img src="Deco-BE25.png" alt="TP-Link Deco BE25" />
+              <img loading="lazy" src="Deco-BE25.png" alt="TP-Link Deco BE25" itemprop="image" />
             </div>
-            <h4>TP-Link Deco BE25</h4>
-            <p class="tag">Apartments & small homes</p>
-            <p class="meta">≈ 6,600 sq ft • $249.99</p>
+            <h4 itemprop="name">TP-Link Deco BE25</h4>
+            <p class="tag" itemprop="category">Apartments & small homes</p>
+            <p class="meta">≈ 6,600 sq ft • <span itemprop="offers" itemscope itemtype="https://schema.org/Offer"><span itemprop="priceCurrency" content="USD">$</span><span itemprop="price">249.99</span></span></p>
             <a class="btn-secondary" href="kits.html?coverage=Apartment/Small&recos=1">View options</a>
           </article>
 
-          <article class="product glass reveal">
+          <article class="product glass reveal" itemscope itemtype="https://schema.org/Product">
             <div class="product-media">
-              <img src="google-nest-wi-fi.png" alt="Google Nest Wi-Fi Pro 3-pack" />
+              <img loading="lazy" src="google-nest-wi-fi.png" alt="Google Nest Wi-Fi Pro 3-pack" itemprop="image" />
             </div>
-            <h4>Google Nest Wi-Fi Pro (3-pack)</h4>
-            <p class="tag">Seamless setup</p>
-            <p class="meta">≈ 6,600 sq ft • $399.99</p>
+            <h4 itemprop="name">Google Nest Wi-Fi Pro (3-pack)</h4>
+            <p class="tag" itemprop="category">Seamless setup</p>
+            <p class="meta">≈ 6,600 sq ft • <span itemprop="offers" itemscope itemtype="https://schema.org/Offer"><span itemprop="priceCurrency" content="USD">$</span><span itemprop="price">399.99</span></span></p>
             <a class="btn-secondary" href="kits.html?mesh=Mesh-ready&recos=1">View options</a>
           </article>
 
-          <article class="product glass reveal">
+          <article class="product glass reveal" itemscope itemtype="https://schema.org/Product">
             <div class="product-media">
-              <img src="ASUS-BE98.png" alt="ASUS ROG GT-BE98 Pro" />
+              <img loading="lazy" src="ASUS-BE98.png" alt="ASUS ROG GT-BE98 Pro" itemprop="image" />
             </div>
-            <h4>ASUS ROG GT-BE98 Pro</h4>
-            <p class="tag">Gaming & performance</p>
-            <p class="meta">≈ 4,800 sq ft • $629.99</p>
+            <h4 itemprop="name">ASUS ROG GT-BE98 Pro</h4>
+            <p class="tag" itemprop="category">Gaming & performance</p>
+            <p class="meta">≈ 4,800 sq ft • <span itemprop="offers" itemscope itemtype="https://schema.org/Offer"><span itemprop="priceCurrency" content="USD">$</span><span itemprop="price">629.99</span></span></p>
             <a class="btn-secondary" href="kits.html?use=Gaming&wan=2.5G&recos=1">View options</a>
           </article>
         </div>
@@ -168,7 +169,7 @@
             <p>Yes. We can coordinate on-site installation, validation, and handover. Remote staging and controller setup are also available.</p>
           </div>
 
-          <div class="accordion-item reveal">
+        <div class="accordion-item reveal">
             <h4>Will the quiz work for office spaces?</h4><span>+</span>
             <p>It’s a great start for sizing and features. For multi-tenant or multi-AP scenarios, book a consult and we’ll design the topology.</p>
           </div>
@@ -198,6 +199,26 @@
 
   <!-- Footer partial -->
   <div id="footer-placeholder" data-partial="footer.html"></div>
+
+  <!-- AI Chat Modal -->
+  <div id="chat-modal" class="chat-modal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="chat-content glass">
+      <header>
+        <h3>Network Advisor</h3>
+        <button class="close" aria-label="Close">&times;</button>
+      </header>
+      <div class="chat-messages"></div>
+      <form class="chat-input">
+        <input type="text" placeholder="e.g., What's best for a 3-floor home with gaming?" aria-label="Ask a question">
+        <button type="button" class="mic" aria-label="Voice input"><i class="fa-solid fa-microphone"></i></button>
+        <button type="submit" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
+      </form>
+      <p class="privacy subtle">Conversations processed locally. <a href="#" id="opt-out">Opt out of data persistence</a>.</p>
+    </div>
+  </div>
+
+  <!-- Floating Chat Button -->
+  <button id="chat-btn" class="chat-btn floating" aria-label="Open Network Advisor"><i class="fa-solid fa-message"></i> Ask Advisor</button>
 
   <!-- Scripts -->
   <script src="scripts.js" defer></script>
