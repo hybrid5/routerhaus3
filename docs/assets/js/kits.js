@@ -12,6 +12,7 @@
  * - Search hotkeys: "/" or "Ctrl/Cmd+K" to focus, "Enter" to apply now, "Esc" to clear
  * - Optional clear button when input sits inside .search wrapper
  * - Works with header.html (open/edit quiz in header)
+ * - Added voice search, low data mode, progress bar, your picks personalization, tilts, reveals
  */
 
 (() => {
@@ -42,9 +43,11 @@
     page: Math.max(1, Number(qs.get('page')) || 1),
     pageSize: Number(qs.get('ps')) || 12,
     compare: new Set(),
-    quiz: null,                 // { coverage, devices, use, ... }
+    quiz: LS.get('rh.quiz.answers') || null,
     showRecos: (qs.get('recos') ?? '1') !== '0',
     search: qs.get('q')?.trim().toLowerCase() || '',
+    lowDataMode: LS.get('rh.lowData', false),
+    optOut: LS.get('rh.optOut', false),
   };
 
   // ---------- Elements (note: some live in header.html and mount later) ----------
@@ -66,6 +69,11 @@
     sortSelect: byId('sortSelect'),
     pageSizeSelect: byId('pageSizeSelect'),
     toggleRecos: byId('toggleRecos'),
+    lowDataToggle: byId('lowDataToggle'),
+    progressFill: byId('progressFill'),
+
+    yourPicks: byId('yourPicks'),
+    picksGrid: byId('picksGrid'),
 
     recommendations: byId('recommendations'),
     recoGrid: byId('recoGrid'),
@@ -130,6 +138,14 @@
     facet_primaryUse: byId('facet-primaryUse'),
     facet_access: byId('facet-access'),
     facet_priceBucket: byId('facet-priceBucket'),
+
+    chatBtn: byId('chat-btn'),
+    chatModal: byId('chat-modal'),
+    chatMessages: $('.chat-messages', byId('chat-modal')),
+    chatInputForm: $('.chat-input', byId('chat-modal')),
+    chatInput: $('input[type="text"]', $('.chat-input')),
+    chatMic: $('.mic', $('.chat-input')),
+    chatOptOut: byId('opt-out'),
   };
 
   // ---------- Partials ----------
@@ -794,6 +810,21 @@
     for (const o of rec) el.recoGrid.appendChild(renderCard(o));
   }
 
+  // ---------- Your Picks (personalized) ----------
+  function renderYourPicks() {
+    if (!state.quiz || state.optOut) {
+      el.yourPicks.hidden = true;
+      return;
+    }
+    const picks = state.data
+      .filter(o => quizMatch(o, state.quiz))
+      .sort((a,b) => b._score - a._score)
+      .slice(0, 4);
+    el.yourPicks.hidden = picks.length === 0;
+    el.picksGrid.innerHTML = '';
+    picks.forEach(o => el.picksGrid.appendChild(renderCard(o)));
+  }
+
   // ---------- Results rendering ----------
   function renderSkeletons(n = state.pageSize) {
     el.skeletonGrid.innerHTML = '';
@@ -902,6 +933,18 @@
         renderRecommendations();
       });
     }
+
+    if (el.lowDataToggle) {
+      el.lowDataToggle.checked = state.lowDataMode;
+      el.lowDataToggle.addEventListener('change', () => {
+        state.lowDataMode = el.lowDataToggle.checked;
+        LS.set('rh.lowData', state.lowDataMode);
+        document.body.classList.toggle('low-data', state.lowDataMode);
+        onStateChanged({});
+      });
+      document.body.classList.toggle('low-data', state.lowDataMode);
+    }
+
     el.openFiltersHeader?.addEventListener('click', openDrawer);
     el.filtersFab?.addEventListener('click', () => {
       openDrawer();
@@ -910,6 +953,7 @@
 
     wireSearch();
     wireCommandBarCondense();
+    wireProgressBar();
   }
 
   // Search bar UX: focus hotkeys, clear button, debounced filtering, Search button, Enter apply
@@ -979,6 +1023,32 @@
         input.select();
       }
     });
+
+    // Voice search (Web Speech API)
+    if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const rec = new SpeechRec();
+      rec.lang = "en-US";
+      const micBtn = $('.mic', wrap);
+      if (micBtn) {
+        micBtn.style.display = "inline-flex";
+        micBtn.addEventListener("click", () => {
+          rec.start();
+          micBtn.classList.add("active");
+        });
+        rec.onresult = (e) => {
+          const transcript = e.results[0][0].transcript;
+          input.value = transcript;
+          applySearch();
+          micBtn.classList.remove("active");
+        };
+        rec.onend = () => micBtn.classList.remove("active");
+        rec.onerror = () => {
+          showToast("Voice recognition error", "error");
+          micBtn.classList.remove("active");
+        };
+      }
+    }
   }
 
   // Condense the command bar on scroll (if present)
@@ -987,10 +1057,20 @@
     if (!bar) return;
     const onScroll = () => {
       const y = window.scrollY || document.documentElement.scrollTop;
-      bar.classList.toggle('is-condensed', y > 80);
+      bar.classList.toggle('is-condensed', y > 50);
     };
     addEventListener('scroll', onScroll, { passive: true });
     onScroll();
+  }
+
+  // Progress bar on scroll
+  function wireProgressBar() {
+    const update = () => {
+      const h = document.documentElement.scrollHeight - innerHeight;
+      el.progressFill.style.width = `${(scrollY / h * 100)}%`;
+    };
+    addEventListener('scroll', update, { passive: true });
+    update();
   }
 
   // ---------- Drawer (mobile filters) ----------
@@ -1182,6 +1262,125 @@
     }
   }
 
+  // ---------- Immersive Interactions ----------
+  function tiltCards() {
+    const cards = $$('.product');
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion || !cards.length) return;
+    cards.forEach((card) => {
+      let rAF = 0;
+      const onMove = (e) => {
+        const rect = card.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = (e.clientX - cx) / rect.width;
+        const dy = (e.clientY - cy) / rect.height;
+        cancelAnimationFrame(rAF);
+        rAF = requestAnimationFrame(() => {
+          card.style.transform =
+            `perspective(800px) rotateX(${(-dy * 6).toFixed(2)}deg) ` +
+            `rotateY(${(dx * 6).toFixed(2)}deg) translateY(-6px)`;
+        });
+      };
+      const reset = () => {
+        cancelAnimationFrame(rAF);
+        card.style.transform = "";
+      };
+      card.addEventListener("mousemove", onMove);
+      card.addEventListener("mouseleave", reset);
+      card.addEventListener("blur", reset, true);
+    });
+  }
+
+  function revealify() {
+    const els = $$(".reveal");
+    if (!els.length || !("IntersectionObserver" in window)) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((en) => {
+          if (en.isIntersecting) {
+            en.target.classList.add("in-view");
+            io.unobserve(en.target);
+          }
+        });
+      },
+      { rootMargin: "0px 0px -10% 0px", threshold: 0.1 }
+    );
+    els.forEach((el) => io.observe(el));
+  }
+
+  // ---------- AI Chat Widget ----------
+  function wireChat() {
+    el.chatBtn.addEventListener("click", () => {
+      el.chatModal.classList.add("active");
+      el.chatModal.setAttribute("aria-hidden", "false");
+    });
+
+    $('.close', el.chatModal).addEventListener("click", () => {
+      el.chatModal.classList.remove("active");
+      el.chatModal.setAttribute("aria-hidden", "true");
+    });
+
+    el.chatOptOut.addEventListener("click", (e) => {
+      e.preventDefault();
+      LS.del(LS_KEY);
+      state.optOut = true;
+      LS.set('rh.optOut', true);
+      showToast("Data persistence opted out and cleared", "info");
+    });
+
+    el.chatInputForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const q = el.chatInput.value.trim();
+      if (!q) return;
+      addMessage(q, "user");
+      el.chatInput.value = "";
+      // Simple rule-based "AI" responses (expand with kits.json logic later)
+      let response = "Based on your query, explore our kits for tailored recommendations.";
+      if (q.toLowerCase().includes("3-floor") || q.toLowerCase().includes("large home")) {
+        response = 'For multi-floor homes, mesh systems provide optimal coverage. <a href="kits.html?coverage=Large/Multi-floor&mesh=Mesh-ready&recos=1">View large home options</a>.';
+      } else if (q.toLowerCase().includes("gaming")) {
+        response = 'Gaming setups benefit from high-speed WAN. <a href="kits.html?use=Gaming&wan=2.5G&recos=1">View gaming kits</a>.';
+      } else if (q.toLowerCase().includes("apartment") || q.toLowerCase().includes("small")) {
+        response = 'Compact spaces need efficient routers. <a href="kits.html?coverage=Apartment/Small&recos=1">View apartment options</a>.';
+      }
+      setTimeout(() => addMessage(response, "ai"), 600);
+    });
+
+    // Voice input (Web Speech API)
+    if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const rec = new SpeechRec();
+      rec.lang = "en-US";
+      const micBtn = el.chatMic;
+      micBtn.style.display = "inline-flex";
+      micBtn.addEventListener("click", () => {
+        rec.start();
+        micBtn.classList.add("active");
+      });
+      rec.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        el.chatInput.value = transcript;
+        el.chatInputForm.dispatchEvent(new Event("submit"));
+        micBtn.classList.remove("active");
+      };
+      rec.onend = () => micBtn.classList.remove("active");
+      rec.onerror = () => {
+        showToast("Voice recognition error", "error");
+        micBtn.classList.remove("active");
+      };
+    }
+
+    function addMessage(text, type) {
+      const div = document.createElement("div");
+      div.classList.add("message", type);
+      div.innerHTML = text;
+      el.chatMessages.appendChild(div);
+      el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+    }
+  }
+
   // ---------- Lifecycle ----------
   async function init() {
     // 1) Mount header/footer so header controls exist before wiring
@@ -1206,6 +1405,7 @@
     wireFacetsControls();
     wireToolbar();
     renderQuickChips();
+    wireChat();
 
     // Apply initial URL state to controls
     for (const [key] of Object.entries(state.facetDefs)) {
@@ -1218,6 +1418,10 @@
 
     // Focus search if q= is present
     if (state.search) byId('searchInput')?.focus();
+
+    tiltCards();
+    revealify();
+    renderYourPicks();
   }
 
   function onStateChanged(opts) {
@@ -1239,6 +1443,7 @@
     const pageItems = paginate();
     renderResults(pageItems);
     renderRecommendations();
+    renderYourPicks();
     updateCompareUI();
 
     el.emptyState.classList.toggle('hide', state.filtered.length > 0);
