@@ -1,3 +1,4 @@
+/* assets/css/kits.css */
 /* ==========================================================
    RouterHaus Kits — 2025 Premium UI (clean, fast, accessible)
    - Tight variable system (light/dark), high-contrast defaults
@@ -39,7 +40,7 @@
   --shadow-sm: 0 10px 28px rgba(16, 24, 40, 0.10);
 
   /* Rounding / spacing / timing */
-  --radius: 14px;
+  --radius: 18px;
   --radius-lg: 22px;
   --space-1: .5rem; --space-2: .75rem; --space-3: 1rem; --space-4: 1.25rem;
 
@@ -229,7 +230,7 @@ details.facet[open] .chev { transform: rotate(180deg); }
   padding: .45rem .8rem; cursor: pointer; transition: transform var(--t), background var(--t), color var(--t);
   min-width: 0;
 }
-.facet .options label:hover { background: color-mix(in oklab, var(--surface) 90%, transparent); transform: translateY(-1px); }
+.facet .options label:hover { transform: translateY(-1px); background: color-mix(in oklab, var(--surface) 90%, transparent); }
 .facet .options input[type="checkbox"] { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
 .facet .options input:checked + span {
   background: var(--primary); color: #fff; border-radius: 12px; padding: .2rem .5rem; margin: -.2rem -.5rem;
@@ -277,6 +278,16 @@ details.facet[open] .chev { transform: rotate(180deg); }
 #searchInput::placeholder { color: color-mix(in oklab, var(--text-2) 65%, transparent); }
 #searchInput:focus { border-color: var(--ring); box-shadow: 0 0 0 4px color-mix(in oklab, var(--ring) 45%, transparent); transform: translateY(-1px); }
 
+/* Mic button for voice search */
+.search { position: relative; }
+.mic { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-2); }
+.mic:hover { color: var(--primary); }
+.mic.active { color: var(--success); }
+
+/* Progress bar */
+.progress-bar { height: 4px; background: var(--border); margin-bottom: 1rem; border-radius: 999px; overflow: hidden; }
+.progress-bar .fill { height: 100%; width: 0; background: var(--primary); transition: width .3s ease; }
+
 /* ------------------- Grid & Cards ------------------- */
 .product-grid {
   display: grid;
@@ -301,6 +312,7 @@ details.facet[open] .chev { transform: rotate(180deg); }
 
 .product:hover {
   box-shadow: var(--shadow), 0 0 18px 4px color-mix(in oklab, var(--accent) 35%, transparent);
+  transform: perspective(800px) rotateY(2deg) rotateX(1deg);
 }
 
 .product .product-media {
@@ -568,3 +580,138 @@ label.radio-pill:has(input:checked) {
   .header-actions .btn { padding: .75rem 1.1rem; }
   #openQuiz.btn.primary { font-weight: 900; }
 }
+
+/* ===== Chat Widget ===== */
+.chat-btn.floating {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  border-radius: 999px;
+  padding: 0.8rem 1.2rem;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  transition: transform .18s ease;
+}
+.chat-btn.floating:hover { transform: translateY(-2px); }
+
+.chat-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .25s, visibility .25s;
+}
+.chat-modal.active {
+  opacity: 1;
+  visibility: visible;
+}
+.chat-content {
+  width: min(90vw, 480px);
+  max-height: 80vh;
+  overflow: auto;
+  padding: 1.2rem;
+  border-radius: var(--radius-lg);
+}
+.chat-content header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.chat-content header h3 { margin: 0; }
+.chat-content .close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.chat-messages {
+  min-height: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.message {
+  margin-bottom: 0.8rem;
+  padding: 0.6rem 1rem;
+  border-radius: 12px;
+  max-width: 80%;
+}
+.message.user {
+  background: var(--primary);
+  color: #fff;
+  margin-left: auto;
+}
+.message.ai {
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+.chat-input {
+  display: flex;
+  gap: 0.5rem;
+}
+.chat-input input {
+  flex: 1;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--card);
+}
+.chat-input button {
+  padding: 0.7rem 1.2rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+.chat-input .mic {
+  background: var(--secondary);
+}
+.chat-input .mic.active { background: var(--success); }
+.privacy {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.8rem;
+  text-align: center;
+}
+
+/* Dark mode refinements */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .glass,
+html[data-theme="dark"] .product {
+  border-color: color-mix(in oklab, var(--primary) 20%, transparent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+/* Custom cursor on desktop interactive */
+@media (min-width: 769px) {
+  .chip:hover, .btn:hover, .btn-secondary:hover {
+    cursor: pointer;
+  }
+}
+
+/* ===== Reveal (match JS) ===== */
+.reveal{ opacity:0; transform:translateY(8px); transition:opacity .32s ease, transform .32s ease }
+.reveal.in-view{ opacity:1; transform:none }
+
+/* Low data mode */
+.low-data img { display: none; }
+.low-data .product-media { background: var(--surface); }
+.low-data * { animation: none !important; transition: none !important; }
