@@ -26,397 +26,561 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 <body>
-  <!-- Top scroll progress (optional; JS will guard if missing) -->
-  <div class="page-progress" aria-hidden="true"><div id="progressFill" class="page-progress__fill"></div></div>
+  <!-- Ambient Background Layers -->
+  <div class="ambient-bg">
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-orb orb-3"></div>
+    <div class="bg-mesh"></div>
+  </div>
+
+  <!-- Dynamic Progress Ring -->
+  <div class="page-progress-ring" aria-hidden="true">
+    <svg class="progress-ring-svg">
+      <circle class="progress-ring-circle" r="18" cx="20" cy="20"></circle>
+    </svg>
+    <div class="progress-percentage">0%</div>
+  </div>
+
+  <!-- Floating Navigation Dots -->
+  <nav class="floating-nav" aria-label="Quick navigation">
+    <button class="nav-dot active" data-section="filters" aria-label="Filters"></button>
+    <button class="nav-dot" data-section="results" aria-label="Results"></button>
+    <button class="nav-dot" data-section="compare" aria-label="Compare"></button>
+  </nav>
 
   <!-- Header partial mounts BEFORE main to avoid CLS -->
   <div id="header-placeholder" data-partial="header.html"></div>
 
   <main class="container kits-layout">
-    <!-- ===== Desktop filter rail ===== -->
-    <aside id="filtersAside" class="filters-rail glass reveal" aria-label="Filters">
+    <!-- ===== Desktop filter rail with modern enhancements ===== -->
+    <aside id="filtersAside" class="filters-rail glass-modern reveal" aria-label="Filters" data-section="filters">
       <div class="filters-header">
-        <h2>Filters</h2>
-        <small id="matchCount" aria-live="polite"></small>
+        <div class="header-content">
+          <h2><i class="fas fa-sliders-h"></i> Smart Filters</h2>
+          <small id="matchCount" aria-live="polite" class="match-counter"></small>
+        </div>
+        <div class="ai-suggest-btn" title="AI Suggestions">
+          <i class="fas fa-sparkles"></i>
+        </div>
       </div>
 
-      <div class="facet-toolbar" role="group" aria-label="Facet tools">
-        <button type="button" id="expandAll" class="btn small">Expand all</button>
-        <button type="button" id="collapseAll" class="btn small">Collapse all</button>
-        <button type="button" id="clearAllFacets" class="btn small ghost">Clear all</button>
+      <div class="facet-toolbar glass-subtle" role="group" aria-label="Facet tools">
+        <button type="button" id="expandAll" class="btn-modern small"><i class="fas fa-expand-arrows-alt"></i> Expand all</button>
+        <button type="button" id="collapseAll" class="btn-modern small"><i class="fas fa-compress-arrows-alt"></i> Collapse all</button>
+        <button type="button" id="clearAllFacets" class="btn-modern small ghost"><i class="fas fa-trash-alt"></i> Clear all</button>
       </div>
 
       <form id="filtersForm" class="filters-form" aria-describedby="matchCount">
-        <!-- Quick Picks -->
-        <section class="facet" data-facet="quick" aria-labelledby="quick-picks-h">
+        <!-- Quick Picks with enhanced design -->
+        <section class="facet modern-facet" data-facet="quick" aria-labelledby="quick-picks-h">
           <div class="facet-head">
-            <h3 id="quick-picks-h">Quick Picks</h3>
-            <button type="button" class="btn tiny facet-clear" data-clear="quick">Clear</button>
+            <h3 id="quick-picks-h"><i class="fas fa-bolt"></i> Quick Picks</h3>
+            <button type="button" class="btn-clear-modern tiny" data-clear="quick">Clear</button>
           </div>
-          <div class="chips horizontal-scroller" id="quickChips" role="group" aria-label="Quick picks">
-            <button type="button" class="chip" data-qpick="families">Best for Families</button>
-            <button type="button" class="chip" data-qpick="budget">Budget-Friendly</button>
-            <button type="button" class="chip" data-qpick="gaming">Gaming Ready</button>
-            <button type="button" class="chip" data-qpick="mesh">Whole-Home Wi-Fi</button>
-            <button type="button" class="chip" data-qpick="fast">Fast Internet</button>
-            <button type="button" class="chip" data-qpick="wfh">Work from Home</button>
+          <div class="chips-container" id="quickChips" role="group" aria-label="Quick picks">
+            <button type="button" class="chip-modern" data-qpick="families">
+              <i class="fas fa-home"></i>Best for Families
+            </button>
+            <button type="button" class="chip-modern" data-qpick="budget">
+              <i class="fas fa-dollar-sign"></i>Budget-Friendly
+            </button>
+            <button type="button" class="chip-modern" data-qpick="gaming">
+              <i class="fas fa-gamepad"></i>Gaming Ready
+            </button>
+            <button type="button" class="chip-modern" data-qpick="mesh">
+              <i class="fas fa-wifi"></i>Whole-Home Wi-Fi
+            </button>
+            <button type="button" class="chip-modern" data-qpick="fast">
+              <i class="fas fa-rocket"></i>Fast Internet
+            </button>
+            <button type="button" class="chip-modern" data-qpick="wfh">
+              <i class="fas fa-laptop"></i>Work from Home
+            </button>
           </div>
         </section>
 
-        <div class="divider" aria-hidden="true"></div>
+        <div class="divider-modern" aria-hidden="true"></div>
 
-        <!-- Brand -->
-        <details class="facet" data-facet="brand" open>
-          <summary>
-            <span>Brand</span>
-            <span class="facet-meta">
-              <span class="badge count" id="badge-brand">0</span>
-              <span class="chev" aria-hidden>▾</span>
-            </span>
+        <!-- Brand with modern collapsible design -->
+        <details class="facet modern-facet" data-facet="brand" open>
+          <summary class="facet-summary">
+            <div class="summary-content">
+              <i class="fas fa-tags"></i>
+              <span>Brand</span>
+            </div>
+            <div class="facet-meta">
+              <span class="badge-modern count" id="badge-brand">0</span>
+              <i class="fas fa-chevron-down facet-chevron"></i>
+            </div>
           </summary>
-          <div class="facet-controls">
-            <button type="button" class="btn tiny facet-clear" data-clear="brand">Clear</button>
+          <div class="facet-content">
+            <div class="facet-controls">
+              <button type="button" class="btn-clear-modern tiny" data-clear="brand">Clear</button>
+            </div>
+            <div class="options modern-options" id="facet-brand"></div>
           </div>
-          <div class="options" id="facet-brand"></div>
         </details>
 
         <!-- Wi-Fi Gen -->
-        <details class="facet" data-facet="wifi" open>
-          <summary>
-            <span>Wi-Fi Speed & Tech</span>
-            <span class="facet-meta">
-              <span class="badge count" id="badge-wifiGen">0</span>
-              <span class="chev" aria-hidden>▾</span>
-            </span>
+        <details class="facet modern-facet" data-facet="wifi" open>
+          <summary class="facet-summary">
+            <div class="summary-content">
+              <i class="fas fa-wifi"></i>
+              <span>Wi-Fi Speed & Tech</span>
+            </div>
+            <div class="facet-meta">
+              <span class="badge-modern count" id="badge-wifiGen">0</span>
+              <i class="fas fa-chevron-down facet-chevron"></i>
+            </div>
           </summary>
-          <div class="facet-controls">
-            <button type="button" class="btn tiny facet-clear" data-clear="wifi">Clear</button>
+          <div class="facet-content">
+            <div class="facet-controls">
+              <button type="button" class="btn-clear-modern tiny" data-clear="wifi">Clear</button>
+            </div>
+            <div class="options modern-options two-cols" id="facet-wifiGen"></div>
           </div>
-          <div class="options two-cols" id="facet-wifiGen"></div>
         </details>
 
         <!-- Bands -->
-        <details class="facet" data-facet="bands">
-          <summary>
-            <span>Wi-Fi Bands</span>
-            <span class="facet-meta"><span class="chev" aria-hidden>▾</span></span>
+        <details class="facet modern-facet" data-facet="bands">
+          <summary class="facet-summary">
+            <div class="summary-content">
+              <i class="fas fa-signal"></i>
+              <span>Wi-Fi Bands</span>
+            </div>
+            <div class="facet-meta">
+              <i class="fas fa-chevron-down facet-chevron"></i>
+            </div>
           </summary>
-          <div class="facet-controls">
-            <button type="button" class="btn tiny facet-clear" data-clear="bands">Clear</button>
+          <div class="facet-content">
+            <div class="facet-controls">
+              <button type="button" class="btn-clear-modern tiny" data-clear="bands">Clear</button>
+            </div>
+            <div class="options modern-options two-cols" id="facet-wifiBands"></div>
           </div>
-          <div class="options two-cols" id="facet-wifiBands"></div>
         </details>
 
         <!-- Mesh -->
-        <details class="facet" data-facet="mesh" open>
-          <summary>
-            <span>Whole-Home Coverage (Mesh)</span>
-            <span class="facet-meta">
-              <span class="badge count" id="badge-meshReady">0</span>
-              <span class="chev" aria-hidden>▾</span>
-            </span>
+        <details class="facet modern-facet" data-facet="mesh" open>
+          <summary class="facet-summary">
+            <div class="summary-content">
+              <i class="fas fa-project-diagram"></i>
+              <span>Whole-Home Coverage (Mesh)</span>
+            </div>
+            <div class="facet-meta">
+              <span class="badge-modern count" id="badge-meshReady">0</span>
+              <i class="fas fa-chevron-down facet-chevron"></i>
+            </div>
           </summary>
-          <div class="facet-controls">
-            <button type="button" class="btn tiny facet-clear" data-clear="mesh">Clear</button>
+          <div class="facet-content">
+            <div class="facet-controls">
+              <button type="button" class="btn-clear-modern tiny" data-clear="mesh">Clear</button>
+            </div>
+            <div class="options modern-options" id="facet-meshReady"></div>
+            <div class="options modern-options" id="facet-meshEco"></div>
           </div>
-          <div class="options" id="facet-meshReady"></div>
-          <div class="options" id="facet-meshEco"></div>
         </details>
 
         <!-- WAN Tier -->
-        <details class="facet" data-facet="wan">
-          <summary>
-            <span>Internet Speed Support</span>
-            <span class="facet-meta">
-              <span class="badge count" id="badge-wanTier">0</span>
-              <span class="chev" aria-hidden>▾</span>
-            </span>
+        <details class="facet modern-facet" data-facet="wan">
+          <summary class="facet-summary">
+            <div class="summary-content">
+              <i class="fas fa-tachometer-alt"></i>
+              <span>Internet Speed Support</span>
+            </div>
+            <div class="facet-meta">
+              <span class="badge-modern count" id="badge-wanTier">0</span>
+              <i class="fas fa-chevron-down facet-chevron"></i>
+            </div>
           </summary>
-          <div class="facet-controls">
-            <button type="button" class="btn tiny facet-clear" data-clear="wan">Clear</button>
+          <div class="facet-content">
+            <div class="facet-controls">
+              <button type="button" class="btn-clear-modern tiny" data-clear="wan">Clear</button>
+            </div>
+            <div class="options modern-options two-cols" id="facet-wanTier"></div>
           </div>
-          <div class="options two-cols" id="facet-wanTier"></div>
         </details>
 
         <!-- LAN count -->
-        <details class="facet" data-facet="lanCount">
-          <summary>
-            <span>Wired Ports (LAN)</span>
-            <span class="facet-meta"><span class="chev" aria-hidden>▾</span></span>
+        <details class="facet modern-facet" data-facet="lanCount">
+          <summary class="facet-summary">
+            <div class="summary-content">
+              <i class="fas fa-ethernet"></i>
+              <span>Wired Ports (LAN)</span>
+            </div>
+            <div class="facet-meta">
+              <i class="fas fa-chevron-down facet-chevron"></i>
+            </div>
           </summary>
-          <div class="facet-controls">
-            <button type="button" class="btn tiny facet-clear" data-clear="lanCount">Clear</button>
+          <div class="facet-content">
+            <div class="facet-controls">
+              <button type="button" class="btn-clear-modern tiny" data-clear="lanCount">Clear</button>
+            </div>
+            <div class="options modern-options two-cols" id="facet-lanCount"></div>
           </div>
-          <div class="options two-cols" id="facet-lanCount"></div>
         </details>
 
         <!-- Multi-Gig LAN -->
-        <details class="facet" data-facet="multiGigLan">
-          <summary>
-            <span>Super-Fast Wired Ports</span>
-            <span class="facet-meta"><span class="chev" aria-hidden>▾</span></span>
+        <details class="facet modern-facet" data-facet="multiGigLan">
+          <summary class="facet-summary">
+            <div class="summary-content">
+              <i class="fas fa-bolt"></i>
+              <span>Super-Fast Wired Ports</span>
+            </div>
+            <div class="facet-meta">
+              <i class="fas fa-chevron-down facet-chevron"></i>
+            </div>
           </summary>
-          <div class="facet-controls">
-            <button type="button" class="btn tiny facet-clear" data-clear="multiGigLan">Clear</button>
+          <div class="facet-content">
+            <div class="facet-controls">
+              <button type="button" class="btn-clear-modern tiny" data-clear="multiGigLan">Clear</button>
+            </div>
+            <div class="options modern-options two-cols" id="facet-multiGigLan"></div>
           </div>
-          <div class="options two-cols" id="facet-multiGigLan"></div>
         </details>
 
         <!-- USB -->
-        <details class="facet" data-facet="usb">
-          <summary>
-            <span>USB Ports</span>
-            <span class="facet-meta"><span class="chev" aria-hidden>▾</span></span>
+        <details class="facet modern-facet" data-facet="usb">
+          <summary class="facet-summary">
+            <div class="summary-content">
+              <i class="fab fa-usb"></i>
+              <span>USB Ports</span>
+            </div>
+            <div class="facet-meta">
+              <i class="fas fa-chevron-down facet-chevron"></i>
+            </div>
           </summary>
-          <div class="facet-controls">
-            <button type="button" class="btn tiny facet-clear" data-clear="usb">Clear</button>
+          <div class="facet-content">
+            <div class="facet-controls">
+              <button type="button" class="btn-clear-modern tiny" data-clear="usb">Clear</button>
+            </div>
+            <div class="options modern-options two-cols" id="facet-usb"></div>
           </div>
-          <div class="options two-cols" id="facet-usb"></div>
         </details>
 
         <!-- Coverage -->
-        <details class="facet" data-facet="coverage" open>
-          <summary>
-            <span>Home Size Coverage</span>
-            <span class="facet-meta">
-              <span class="badge count" id="badge-coverageBucket">0</span>
-              <span class="chev" aria-hidden>▾</span>
-            </span>
+        <details class="facet modern-facet" data-facet="coverage" open>
+          <summary class="facet-summary">
+            <div class="summary-content">
+              <i class="fas fa-home"></i>
+              <span>Home Size Coverage</span>
+            </div>
+            <div class="facet-meta">
+              <span class="badge-modern count" id="badge-coverageBucket">0</span>
+              <i class="fas fa-chevron-down facet-chevron"></i>
+            </div>
           </summary>
-          <div class="facet-controls">
-            <button type="button" class="btn tiny facet-clear" data-clear="coverage">Clear</button>
+          <div class="facet-content">
+            <div class="facet-controls">
+              <button type="button" class="btn-clear-modern tiny" data-clear="coverage">Clear</button>
+            </div>
+            <div class="options modern-options two-cols" id="facet-coverageBucket"></div>
           </div>
-          <div class="options two-cols" id="facet-coverageBucket"></div>
         </details>
 
         <!-- Device load -->
-        <details class="facet" data-facet="device" open>
-          <summary>
-            <span>Number of Devices on Wi-Fi</span>
-            <span class="facet-meta">
-              <span class="badge count" id="badge-deviceLoad">0</span>
-              <span class="chev" aria-hidden>▾</span>
-            </span>
+        <details class="facet modern-facet" data-facet="device" open>
+          <summary class="facet-summary">
+            <div class="summary-content">
+              <i class="fas fa-mobile-alt"></i>
+              <span>Number of Devices on Wi-Fi</span>
+            </div>
+            <div class="facet-meta">
+              <span class="badge-modern count" id="badge-deviceLoad">0</span>
+              <i class="fas fa-chevron-down facet-chevron"></i>
+            </div>
           </summary>
-          <div class="facet-controls">
-            <button type="button" class="btn tiny facet-clear" data-clear="device">Clear</button>
+          <div class="facet-content">
+            <div class="facet-controls">
+              <button type="button" class="btn-clear-modern tiny" data-clear="device">Clear</button>
+            </div>
+            <div class="options modern-options two-cols" id="facet-deviceLoad"></div>
           </div>
-          <div class="options two-cols" id="facet-deviceLoad"></div>
         </details>
 
         <!-- Primary use -->
-        <details class="facet" data-facet="use" open>
-          <summary>
-            <span>Main Use</span>
-            <span class="facet-meta">
-              <span class="badge count" id="badge-primaryUse">0</span>
-              <span class="chev" aria-hidden>▾</span>
-            </span>
+        <details class="facet modern-facet" data-facet="use" open>
+          <summary class="facet-summary">
+            <div class="summary-content">
+              <i class="fas fa-bullseye"></i>
+              <span>Main Use</span>
+            </div>
+            <div class="facet-meta">
+              <span class="badge-modern count" id="badge-primaryUse">0</span>
+              <i class="fas fa-chevron-down facet-chevron"></i>
+            </div>
           </summary>
-          <div class="facet-controls">
-            <button type="button" class="btn tiny facet-clear" data-clear="use">Clear</button>
+          <div class="facet-content">
+            <div class="facet-controls">
+              <button type="button" class="btn-clear-modern tiny" data-clear="use">Clear</button>
+            </div>
+            <div class="options modern-options" id="facet-primaryUse"></div>
           </div>
-          <div class="options" id="facet-primaryUse"></div>
         </details>
 
         <!-- Access -->
-        <details class="facet" data-facet="access">
-          <summary>
-            <span>Internet Type</span>
-            <span class="facet-meta"><span class="chev" aria-hidden>▾</span></span>
+        <details class="facet modern-facet" data-facet="access">
+          <summary class="facet-summary">
+            <div class="summary-content">
+              <i class="fas fa-globe"></i>
+              <span>Internet Type</span>
+            </div>
+            <div class="facet-meta">
+              <i class="fas fa-chevron-down facet-chevron"></i>
+            </div>
           </summary>
-          <div class="facet-controls">
-            <button type="button" class="btn tiny facet-clear" data-clear="access">Clear</button>
+          <div class="facet-content">
+            <div class="facet-controls">
+              <button type="button" class="btn-clear-modern tiny" data-clear="access">Clear</button>
+            </div>
+            <div class="options modern-options two-cols" id="facet-access"></div>
           </div>
-          <div class="options two-cols" id="facet-access"></div>
         </details>
 
         <!-- Price -->
-        <details class="facet" data-facet="price">
-          <summary>
-            <span>Price Range</span>
-            <span class="facet-meta">
-              <span class="badge count" id="badge-priceBucket">0</span>
-              <span class="chev" aria-hidden>▾</span>
-            </span>
+        <details class="facet modern-facet" data-facet="price">
+          <summary class="facet-summary">
+            <div class="summary-content">
+              <i class="fas fa-dollar-sign"></i>
+              <span>Price Range</span>
+            </div>
+            <div class="facet-meta">
+              <span class="badge-modern count" id="badge-priceBucket">0</span>
+              <i class="fas fa-chevron-down facet-chevron"></i>
+            </div>
           </summary>
-          <div class="facet-controls">
-            <button type="button" class="btn tiny facet-clear" data-clear="price">Clear</button>
+          <div class="facet-content">
+            <div class="facet-controls">
+              <button type="button" class="btn-clear-modern tiny" data-clear="price">Clear</button>
+            </div>
+            <div class="options modern-options two-cols" id="facet-priceBucket"></div>
           </div>
-          <div class="options two-cols" id="facet-priceBucket"></div>
         </details>
 
-        <!-- Compare Panel (desktop) -->
-        <section id="comparePanel" class="facet" data-facet="compare" aria-labelledby="compare-h">
+        <!-- Compare Panel (desktop) with modern styling -->
+        <section id="comparePanel" class="facet modern-facet compare-panel-modern" data-facet="compare" aria-labelledby="compare-h">
           <div class="facet-head">
-            <h3 id="compare-h">Compare</h3>
-            <button id="clearCompare" class="btn tiny ghost" type="button">Clear</button>
+            <h3 id="compare-h"><i class="fas fa-balance-scale"></i> Compare</h3>
+            <button id="clearCompare" class="btn-clear-modern tiny" type="button">Clear</button>
           </div>
-          <div id="compareItemsPanel" class="compare-items"></div>
+          <div id="compareItemsPanel" class="compare-items modern-compare-items"></div>
         </section>
       </form>
     </aside>
 
-    <!-- ===== Mobile filter FAB & drawer ===== -->
-    <button id="filtersFab" class="fab" aria-controls="filtersDrawer" aria-expanded="false">
-      Filters <span id="activeCount" class="badge">0</span>
+    <!-- ===== Mobile filter FAB & drawer with modern enhancements ===== -->
+    <button id="filtersFab" class="fab-modern" aria-controls="filtersDrawer" aria-expanded="false">
+      <i class="fas fa-sliders-h"></i>
+      <span>Filters</span>
+      <span id="activeCount" class="badge-modern">0</span>
     </button>
-    <div id="filtersDrawer" class="drawer" aria-hidden="true" aria-labelledby="drawerTitle" role="dialog">
-      <div class="drawer-panel glass">
+    <div id="filtersDrawer" class="drawer-modern" aria-hidden="true" aria-labelledby="drawerTitle" role="dialog">
+      <div class="drawer-panel glass-modern">
         <div class="drawer-header">
-          <h2 id="drawerTitle">Filters</h2>
-          <button class="icon-btn" data-close-drawer aria-label="Close filters">x</button>
+          <h2 id="drawerTitle"><i class="fas fa-sliders-h"></i> Filters</h2>
+          <button class="icon-btn-modern" data-close-drawer aria-label="Close filters">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
         <div class="drawer-body">
           <div id="drawerFormMount"></div>
         </div>
         <div class="drawer-footer">
-          <button class="btn ghost" data-close-drawer>Cancel</button>
-          <button id="applyDrawer" class="btn primary">Apply</button>
+          <button class="btn-modern ghost" data-close-drawer>Cancel</button>
+          <button id="applyDrawer" class="btn-modern primary">Apply Filters</button>
         </div>
       </div>
     </div>
 
-    <!-- ===== Content ===== -->
-    <section class="content" aria-live="polite">
-      <!-- Minimal page header: search only -->
-      <header class="page-header">
-        <div class="command-bar glass" role="region" aria-label="Search">
-          <label class="search" for="searchInput">
-            <span class="sr-only">Search routers</span>
-            <input type="text" id="searchInput" placeholder="Search by brand or model…" aria-label="Search routers">
-          </label>
-          <button id="searchBtn" class="btn glass" type="button" aria-label="Run search">Search</button>
+    <!-- ===== Content with enhanced modern layout ===== -->
+    <section class="content modern-content" aria-live="polite" data-section="results">
+      <!-- Enhanced page header with modern search -->
+      <header class="page-header modern-header">
+        <div class="command-bar glass-modern" role="region" aria-label="Search">
+          <div class="search-container modern-search">
+            <label class="search-wrapper" for="searchInput">
+              <i class="fas fa-search search-icon"></i>
+              <input type="text" id="searchInput" placeholder="Search by brand, model, or feature..." aria-label="Search routers" class="search-input-modern">
+              <button class="voice-btn" type="button" aria-label="Voice search">
+                <i class="fas fa-microphone"></i>
+              </button>
+            </label>
+            <button id="searchBtn" class="btn-modern primary search-btn" type="button" aria-label="Run search">
+              <i class="fas fa-search"></i> Search
+            </button>
+          </div>
         </div>
       </header>
 
-      <!-- Active filters -->
-      <div id="activeChips" class="active-chips" role="list" aria-label="Active filters"></div>
+      <!-- Enhanced active filters -->
+      <div id="activeChips" class="active-chips modern-chips" role="list" aria-label="Active filters"></div>
 
-      <!-- Toolbar -->
-      <div class="toolbar glass" role="region" aria-label="Results toolbar">
-        <label class="sort">
-          <span>Sort</span>
-          <select id="sortSelect" aria-label="Sort results">
-            <option value="relevance">Relevance</option>
-            <option value="wifi-desc">Wi-Fi Gen</option>
-            <option value="price-asc">Price ↑</option>
-            <option value="price-desc">Price ↓</option>
-            <option value="coverage-desc">Coverage</option>
-            <option value="wan-desc">WAN Tier</option>
-            <option value="reviews-desc">Reviews</option>
-          </select>
-        </label>
+      <!-- Enhanced toolbar -->
+      <div class="toolbar glass-modern modern-toolbar" role="region" aria-label="Results toolbar">
+        <div class="toolbar-left">
+          <label class="sort-modern">
+            <i class="fas fa-sort"></i>
+            <span>Sort</span>
+            <select id="sortSelect" aria-label="Sort results" class="select-modern">
+              <option value="relevance">Relevance</option>
+              <option value="wifi-desc">Wi-Fi Gen</option>
+              <option value="price-asc">Price ↑</option>
+              <option value="price-desc">Price ↓</option>
+              <option value="coverage-desc">Coverage</option>
+              <option value="wan-desc">WAN Tier</option>
+              <option value="reviews-desc">Reviews</option>
+            </select>
+          </label>
 
-        <label class="pagesize">
-          <span>Per page</span>
-          <select id="pageSizeSelect" aria-label="Results per page">
-            <option value="12" selected>12</option>
-            <option value="24">24</option>
-            <option value="48">48</option>
-          </select>
-        </label>
+          <label class="pagesize-modern">
+            <i class="fas fa-list"></i>
+            <span>Per page</span>
+            <select id="pageSizeSelect" aria-label="Results per page" class="select-modern">
+              <option value="12" selected>12</option>
+              <option value="24">24</option>
+              <option value="48">48</option>
+            </select>
+          </label>
+        </div>
 
-        <label class="toggle">
-          <input type="checkbox" id="toggleRecos" checked />
-          <span>Show recommendations</span>
-        </label>
+        <div class="toolbar-right">
+          <label class="toggle-modern">
+            <input type="checkbox" id="toggleRecos" checked />
+            <span class="toggle-slider"></span>
+            <span>Show recommendations</span>
+          </label>
 
-        <button id="openFiltersHeader" class="btn glass" type="button">Filters</button>
+          <button id="openFiltersHeader" class="btn-modern glass" type="button">
+            <i class="fas fa-sliders-h"></i> Filters
+          </button>
+        </div>
       </div>
 
-      <!-- Recommendations -->
-      <section id="recommendations" class="recommendations reveal" aria-live="polite">
-        <div class="section-head">
-          <h2>Recommended for you</h2>
-          <small id="recoNote" class="subtle"></small>
+      <!-- Enhanced recommendations -->
+      <section id="recommendations" class="recommendations modern-recommendations reveal" aria-live="polite">
+        <div class="section-head modern-section-head">
+          <h2><i class="fas fa-star"></i> Recommended for you</h2>
+          <small id="recoNote" class="reco-note"></small>
         </div>
-        <div id="recoGrid" class="product-grid"></div>
+        <div id="recoGrid" class="product-grid modern-grid"></div>
       </section>
 
-      <!-- Pagination Top -->
-      <nav id="paginationTop" class="pagination reveal" aria-label="Pagination top"></nav>
+      <!-- Enhanced pagination -->
+      <nav id="paginationTop" class="pagination modern-pagination reveal" aria-label="Pagination top"></nav>
 
-      <!-- Results -->
-      <section class="results reveal" aria-label="Results">
+      <!-- Enhanced results -->
+      <section class="results modern-results reveal" aria-label="Results">
         <div id="kitsStatus" class="sr-only" role="status" aria-live="polite">Loading kits…</div>
-        <div id="kitsError" class="hide" role="alert"></div>
+        <div id="kitsError" class="hide error-modern" role="alert"></div>
 
-        <!-- Skeleton loader grid -->
-        <div id="skeletonGrid" class="product-grid skeletons" aria-hidden="true"></div>
+        <!-- Enhanced skeleton loader -->
+        <div id="skeletonGrid" class="product-grid modern-grid skeletons-modern" aria-hidden="true"></div>
 
-        <!-- Real results -->
-        <div id="kitResults" class="product-grid" aria-busy="false"></div>
+        <!-- Enhanced real results -->
+        <div id="kitResults" class="product-grid modern-grid" aria-busy="false"></div>
 
-        <!-- Empty state -->
-        <div id="emptyState" class="empty hide" role="note" aria-live="polite">
-          <h3>No matches</h3>
-          <p>Try adjusting filters or tap a quick option:</p>
-          <div class="chips" id="emptyQuickChips" role="group" aria-label="Quick picks (empty results)">
-            <button type="button" class="chip" data-qpick="families">Best for Families</button>
-            <button type="button" class="chip" data-qpick="budget">Budget-Friendly</button>
-            <button type="button" class="chip" data-qpick="gaming">Gaming Ready</button>
-            <button type="button" class="chip" data-qpick="mesh">Whole-Home Wi-Fi</button>
-            <button type="button" class="chip" data-qpick="fast">Fast Internet</button>
-            <button type="button" class="chip" data-qpick="wfh">Work from Home</button>
+        <!-- Enhanced empty state -->
+        <div id="emptyState" class="empty-modern hide" role="note" aria-live="polite">
+          <div class="empty-icon">
+            <i class="fas fa-search"></i>
           </div>
-          <button type="button" class="btn primary" data-open-quiz>Try Our Quiz for Suggestions</button>
+          <h3>No matches found</h3>
+          <p>Try adjusting your filters or explore these popular options:</p>
+          <div class="chips-container modern-empty-chips" id="emptyQuickChips" role="group" aria-label="Quick picks (empty results)">
+            <button type="button" class="chip-modern" data-qpick="families">
+              <i class="fas fa-home"></i>Best for Families
+            </button>
+            <button type="button" class="chip-modern" data-qpick="budget">
+              <i class="fas fa-dollar-sign"></i>Budget-Friendly
+            </button>
+            <button type="button" class="chip-modern" data-qpick="gaming">
+              <i class="fas fa-gamepad"></i>Gaming Ready
+            </button>
+            <button type="button" class="chip-modern" data-qpick="mesh">
+              <i class="fas fa-wifi"></i>Whole-Home Wi-Fi
+            </button>
+            <button type="button" class="chip-modern" data-qpick="fast">
+              <i class="fas fa-rocket"></i>Fast Internet
+            </button>
+            <button type="button" class="chip-modern" data-qpick="wfh">
+              <i class="fas fa-laptop"></i>Work from Home
+            </button>
+          </div>
+          <button type="button" class="btn-modern primary large" data-open-quiz>
+            <i class="fas fa-magic"></i> Try Our Smart Quiz
+          </button>
         </div>
       </section>
 
-      <!-- Pagination Bottom -->
-      <nav id="paginationBottom" class="pagination reveal" aria-label="Pagination bottom"></nav>
+      <!-- Enhanced pagination bottom -->
+      <nav id="paginationBottom" class="pagination modern-pagination reveal" aria-label="Pagination bottom"></nav>
     </section>
   </main>
 
-  <!-- Sticky Compare trigger (mobile/any) -->
-  <button id="compareSticky" class="compare-sticky" hidden aria-controls="compareDrawer">
-    Compare (<span id="compareCount">0</span>)
+  <!-- Enhanced sticky compare -->
+  <button id="compareSticky" class="compare-sticky-modern" hidden aria-controls="compareDrawer" data-section="compare">
+    <i class="fas fa-balance-scale"></i>
+    <span>Compare (<span id="compareCount">0</span>)</span>
   </button>
 
-  <!-- Compare bar (mobile) -->
-  <aside id="compareDrawer" class="compare glass" aria-live="polite" hidden role="dialog" aria-label="Compare">
-    <div class="compare-header">
-      <strong>Compare</strong>
-      <button id="clearCompareMobile" class="btn small ghost" type="button">Clear</button>
+  <!-- Enhanced compare bar -->
+  <aside id="compareDrawer" class="compare-modern glass-modern" aria-live="polite" hidden role="dialog" aria-label="Compare">
+    <div class="compare-header-modern">
+      <div class="compare-title">
+        <i class="fas fa-balance-scale"></i>
+        <strong>Compare Products</strong>
+      </div>
+      <button id="clearCompareMobile" class="btn-modern small ghost" type="button">
+        <i class="fas fa-trash-alt"></i> Clear
+      </button>
     </div>
-    <div id="compareItems" class="compare-items"></div>
+    <div id="compareItems" class="compare-items modern-compare-items"></div>
   </aside>
 
-  <!-- Quiz modal -->
-  <dialog id="quizModal" class="modal glass" aria-labelledby="quizTitle" aria-modal="true">
-    <div class="modal-content">
-      <header class="modal-header">
-        <h2 id="quizTitle">Let's Find Your Perfect Router Kit</h2>
-        <button type="button" class="quiz-close modal-close" aria-label="Close">x</button>
+  <!-- Enhanced quiz modal -->
+  <dialog id="quizModal" class="modal-modern glass-modern" aria-labelledby="quizTitle" aria-modal="true">
+    <div class="modal-content-modern">
+      <header class="modal-header-modern">
+        <div class="modal-title-group">
+          <i class="fas fa-magic modal-icon"></i>
+          <h2 id="quizTitle">Let's Find Your Perfect Router Kit</h2>
+        </div>
+        <button type="button" class="quiz-close modal-close-modern" aria-label="Close">
+          <i class="fas fa-times"></i>
+        </button>
       </header>
 
-      <form id="quizForm" class="quiz-body">
-        <div class="quiz-progress">Step <span id="quizStep">1</span>/7</div>
+      <form id="quizForm" class="quiz-body-modern">
+        <div class="quiz-progress-modern">
+          <div class="progress-bar-modern">
+            <div class="progress-fill-modern"></div>
+          </div>
+          <span class="progress-text">Step <span id="quizStep">1</span>/7</span>
+        </div>
 
         <!-- ENVIRONMENT -->
-        <fieldset class="q-group reveal">
-          <legend>What's your home like?</legend>
-          <label>
-            <span class="sr-only">Home size</span>
-            <select id="qCoverage" required>
-              <option value="">Select...</option>
+        <fieldset class="q-group-modern reveal">
+          <legend><i class="fas fa-home"></i> What's your home like?</legend>
+          <label class="select-wrapper-modern">
+            <select id="qCoverage" required class="select-modern">
+              <option value="">Select your home size...</option>
               <option value="Apartment/Small">Apartment or Small Home (studio, 1-bed, under 1,800 sq ft)</option>
               <option value="2–3 Bedroom">Medium Home (2-3 bedrooms, up to 3,200 sq ft)</option>
               <option value="Large/Multi-floor">Large or Multi-Floor Home (over 3,200 sq ft)</option>
               <option value="">I'm not sure – suggest based on other answers</option>
             </select>
+            <i class="fas fa-chevron-down select-arrow"></i>
           </label>
-          <p id="meshHint" class="hint" aria-live="polite">For larger homes, we recommend mesh for no dead spots.</p>
+          <p id="meshHint" class="hint-modern" aria-live="polite">For larger homes, we recommend mesh for no dead spots.</p>
         </fieldset>
 
         <!-- LOAD -->
-        <fieldset class="q-group reveal">
-          <legend>How many devices connect to your Wi-Fi?</legend>
-          <label>
-            <span class="sr-only">Number of devices</span>
-            <select id="qDevices" required>
-              <option value="">Select...</option>
+        <fieldset class="q-group-modern reveal">
+          <legend><i class="fas fa-mobile-alt"></i> How many devices connect to your Wi-Fi?</legend>
+          <label class="select-wrapper-modern">
+            <select id="qDevices" required class="select-modern">
+              <option value="">Select device count...</option>
               <option value="1–5">1-5 (just basics, like a phone and laptop)</option>
               <option value="6–15">6-15 (family with phones, TVs, and a few smart devices)</option>
               <option value="16–30">16-30 (busy home with streaming and gaming)</option>
@@ -425,16 +589,16 @@
               <option value="100+">100+ (heavy use, pros or big households)</option>
               <option value="">I'm not sure – average for most homes</option>
             </select>
+            <i class="fas fa-chevron-down select-arrow"></i>
           </label>
         </fieldset>
 
         <!-- USE -->
-        <fieldset class="q-group reveal">
-          <legend>What do you use Wi-Fi for most?</legend>
-          <label>
-            <span class="sr-only">Main use</span>
-            <select id="qUse" required>
-              <option value="">Select...</option>
+        <fieldset class="q-group-modern reveal">
+          <legend><i class="fas fa-bullseye"></i> What do you use Wi-Fi for most?</legend>
+          <label class="select-wrapper-modern">
+            <select id="qUse" required class="select-modern">
+              <option value="">Select main usage...</option>
               <option value="All-Purpose">Everyday Use (browsing, email, social media)</option>
               <option value="Gaming">Gaming (online games, low lag needed)</option>
               <option value="Work-From-Home">Work from Home (video calls, file sharing)</option>
@@ -443,15 +607,15 @@
               <option value="Prosumer">Advanced/Pro (high-speed downloads, servers)</option>
               <option value="">I'm not sure – mix of everything</option>
             </select>
+            <i class="fas fa-chevron-down select-arrow"></i>
           </label>
         </fieldset>
 
         <!-- ACCESS -->
-        <fieldset class="q-group reveal">
-          <legend>What type of internet do you have?</legend>
-          <label>
-            <span class="sr-only">Access type</span>
-            <select id="qAccess">
+        <fieldset class="q-group-modern reveal">
+          <legend><i class="fas fa-globe"></i> What type of internet do you have?</legend>
+          <label class="select-wrapper-modern">
+            <select id="qAccess" class="select-modern">
               <option value="">No preference / I'm not sure</option>
               <option value="Cable">Cable (most common, like Xfinity)</option>
               <option value="Fiber">Fiber (super fast, like Google Fiber)</option>
@@ -459,119 +623,217 @@
               <option value="Satellite">Satellite (rural areas, like Starlink)</option>
               <option value="DSL">DSL (older phone line internet)</option>
             </select>
+            <i class="fas fa-chevron-down select-arrow"></i>
           </label>
         </fieldset>
 
         <!-- SPEED -->
-        <fieldset class="q-group reveal">
-          <legend>Your Internet Plan Speed</legend>
-          <div class="speed-grid" role="group" aria-label="Plan speed">
-            <label><input type="radio" name="qSpeedLabel" value="≤1G"> Basic (up to 1 Gbps)</label>
-            <label><input type="radio" name="qSpeedLabel" value="2.5G"> Medium (2.5 Gbps)</label>
-            <label><input type="radio" name="qSpeedLabel" value="5G"> High (5 Gbps)</label>
-            <label><input type="radio" name="qSpeedLabel" value="10G"> Ultra (10 Gbps)</label>
-            <label><input type="radio" name="qSpeedLabel" value=""> I'm not sure</label>
+        <fieldset class="q-group-modern reveal">
+          <legend><i class="fas fa-tachometer-alt"></i> Your Internet Plan Speed</legend>
+          <div class="speed-grid-modern" role="group" aria-label="Plan speed">
+            <label class="radio-card-modern">
+              <input type="radio" name="qSpeedLabel" value="≤1G">
+              <div class="card-content">
+                <i class="fas fa-wifi"></i>
+                <span>Basic</span>
+                <small>up to 1 Gbps</small>
+              </div>
+            </label>
+            <label class="radio-card-modern">
+              <input type="radio" name="qSpeedLabel" value="2.5G">
+              <div class="card-content">
+                <i class="fas fa-signal"></i>
+                <span>Medium</span>
+                <small>2.5 Gbps</small>
+              </div>
+            </label>
+            <label class="radio-card-modern">
+              <input type="radio" name="qSpeedLabel" value="5G">
+              <div class="card-content">
+                <i class="fas fa-rocket"></i>
+                <span>High</span>
+                <small>5 Gbps</small>
+              </div>
+            </label>
+            <label class="radio-card-modern">
+              <input type="radio" name="qSpeedLabel" value="10G">
+              <div class="card-content">
+                <i class="fas fa-bolt"></i>
+                <span>Ultra</span>
+                <small>10 Gbps</small>
+              </div>
+            </label>
+            <label class="radio-card-modern">
+              <input type="radio" name="qSpeedLabel" value="">
+              <div class="card-content">
+                <i class="fas fa-question"></i>
+                <span>Not Sure</span>
+                <small>Help me decide</small>
+              </div>
+            </label>
           </div>
         </fieldset>
 
         <!-- MESH PREFERENCE -->
-        <fieldset class="q-group reveal">
-          <legend>Do you want whole-home coverage?</legend>
-          <label class="mesh-row">
+        <fieldset class="q-group-modern reveal">
+          <legend><i class="fas fa-project-diagram"></i> Do you want whole-home coverage?</legend>
+          <label class="mesh-auto-modern">
             <input type="checkbox" id="qMeshAuto" checked>
+            <span class="toggle-slider"></span>
             <span>Auto decide for me (recommended)</span>
           </label>
-          <div class="mesh-row">
-            <label class="radio-pill"><input type="radio" name="qMesh" value="" checked> No preference</label>
-            <label class="radio-pill"><input type="radio" name="qMesh" value="yes"> Require mesh</label>
-            <label class="radio-pill"><input type="radio" name="qMesh" value="no"> Standalone only</label>
+          <div class="mesh-options-modern">
+            <label class="radio-pill-modern">
+              <input type="radio" name="qMesh" value="" checked>
+              <span><i class="fas fa-question-circle"></i> No preference</span>
+            </label>
+            <label class="radio-pill-modern">
+              <input type="radio" name="qMesh" value="yes">
+              <span><i class="fas fa-check-circle"></i> Require mesh</span>
+            </label>
+            <label class="radio-pill-modern">
+              <input type="radio" name="qMesh" value="no">
+              <span><i class="fas fa-times-circle"></i> Standalone only</span>
+            </label>
           </div>
         </fieldset>
 
         <!-- BUDGET (optional) -->
-        <fieldset class="q-group reveal">
-          <legend>What's your budget?</legend>
-          <label>
-            <span class="sr-only">Budget</span>
-            <select id="qPrice">
+        <fieldset class="q-group-modern reveal">
+          <legend><i class="fas fa-dollar-sign"></i> What's your budget?</legend>
+          <label class="select-wrapper-modern">
+            <select id="qPrice" class="select-modern">
               <option value="">No preference / Show all</option>
               <option value="<150">$ (Under $150)</option>
-              <option value="150–299">$$ ($150-299)</option>
-              <option value="300–599">$$$ ($300-599)</option>
-              <option value="600+">$$$$ ($600+)</option>
+              <option value="150–299">$ ($150-299)</option>
+              <option value="300–599">$$ ($300-599)</option>
+              <option value="600+">$$ ($600+)</option>
             </select>
+            <i class="fas fa-chevron-down select-arrow"></i>
           </label>
         </fieldset>
 
-        <footer class="modal-actions">
-          <button type="button" class="btn" id="quizCancel">Cancel</button>
-          <button type="submit" class="btn primary">Show My Recommendations</button>
+        <footer class="modal-actions-modern">
+          <button type="button" class="btn-modern ghost" id="quizCancel">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+          <button type="submit" class="btn-modern primary large">
+            <i class="fas fa-magic"></i> Show My Recommendations
+          </button>
         </footer>
       </form>
     </div>
   </dialog>
 
-  <!-- AI Chat Modal -->
-  <div id="chat-modal" class="chat-modal" aria-hidden="true" role="dialog" aria-modal="true">
-    <div class="chat-content glass">
-      <header>
-        <h3>Network Advisor</h3>
-        <button class="close" aria-label="Close">&times;</button>
+  <!-- Enhanced AI Chat Modal -->
+  <div id="chat-modal" class="chat-modal-modern" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="chat-content-modern glass-modern">
+      <header class="chat-header-modern">
+        <div class="chat-title-group">
+          <div class="ai-avatar">
+            <i class="fas fa-robot"></i>
+          </div>
+          <h3>Network Advisor AI</h3>
+          <div class="status-indicator online"></div>
+        </div>
+        <button class="close-modern" aria-label="Close">
+          <i class="fas fa-times"></i>
+        </button>
       </header>
-      <div class="chat-messages"></div>
-      <form class="chat-input">
-        <input type="text" placeholder="e.g., What's best for a 3-floor home with gaming?" aria-label="Ask a question">
-        <button type="button" class="mic" aria-label="Voice input"><i class="fa-solid fa-microphone"></i></button>
-        <button type="submit" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
+      <div class="chat-messages-modern"></div>
+      <form class="chat-input-modern">
+        <div class="input-wrapper">
+          <input type="text" placeholder="Ask me about routers, mesh systems, or network setup..." aria-label="Ask a question">
+          <button type="button" class="mic-btn" aria-label="Voice input">
+            <i class="fa-solid fa-microphone"></i>
+          </button>
+        </div>
+        <button type="submit" class="send-btn" aria-label="Send">
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
       </form>
-      <p class="privacy subtle">Conversations processed locally. <a href="#" id="opt-out">Opt out of data persistence</a>.</p>
+      <p class="privacy-modern">
+        <i class="fas fa-shield-alt"></i>
+        Conversations processed locally. 
+        <a href="#" id="opt-out">Opt out of data persistence</a>
+      </p>
     </div>
   </div>
 
-  <!-- Floating Chat Button -->
-  <button id="chat-btn" class="chat-btn floating" aria-label="Open Network Advisor"><i class="fa-solid fa-message"></i> Ask Advisor</button>
-
-  <!-- Card template -->
-  <template id="cardTpl">
-    <article class="product glass" data-id="" itemscope itemtype="https://schema.org/Product">
-      <div class="product-media">
-        <img loading="lazy" alt="" src="" onerror="this.style.display='none'" itemprop="image">
+  <!-- Enhanced Floating Chat Button -->
+  <button id="chat-btn" class="chat-btn-modern floating" aria-label="Open Network Advisor">
+    <div class="chat-btn-content">
+      <div class="chat-icon">
+        <i class="fa-solid fa-comments"></i>
       </div>
-      <header class="product-header">
-        <h4 class="title" itemprop="name"></h4>
-        <div class="chips line"></div>
+      <span>Ask AI</span>
+    </div>
+    <div class="pulse-ring"></div>
+  </button>
+
+  <!-- Enhanced Card template -->
+  <template id="cardTpl">
+    <article class="product-modern glass-modern" data-id="" itemscope itemtype="https://schema.org/Product">
+      <div class="product-media-modern">
+        <div class="media-overlay"></div>
+        <img loading="lazy" alt="" src="" onerror="this.style.display='none'" itemprop="image">
+        <div class="product-badges">
+          <span class="badge-wifi"></span>
+          <span class="badge-recommended" style="display: none;">Recommended</span>
+        </div>
+      </div>
+      <header class="product-header-modern">
+        <h4 class="title-modern" itemprop="name"></h4>
+        <div class="chips-line-modern"></div>
       </header>
-      <ul class="specs"></ul>
-      <div class="priceRow">
-        <strong class="price" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+      <ul class="specs-modern"></ul>
+      <div class="price-row-modern">
+        <strong class="price-modern" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
           <span itemprop="priceCurrency" content="USD">$</span><span itemprop="price"></span>
         </strong>
-        <div class="ctaRow">
-          <a class="btn small" target="_blank" rel="noopener">Buy</a>
-          <button class="icon-btn compare-btn" title="Compare" type="button" aria-pressed="false">+</button>
+        <div class="cta-row-modern">
+          <a class="btn-modern small primary" target="_blank" rel="noopener">
+            <i class="fas fa-shopping-cart"></i> Buy
+          </a>
+          <button class="icon-btn-modern compare-btn" title="Compare" type="button" aria-pressed="false">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+      </div>
+      <div class="product-hover-overlay">
+        <div class="quick-actions">
+          <button class="quick-btn" title="Quick View">
+            <i class="fas fa-eye"></i>
+          </button>
+          <button class="quick-btn" title="Add to Favorites">
+            <i class="fas fa-heart"></i>
+          </button>
+          <button class="quick-btn compare-btn" title="Compare">
+            <i class="fas fa-balance-scale"></i>
+          </button>
         </div>
       </div>
     </article>
   </template>
 
-  <!-- Skeleton card template -->
+  <!-- Enhanced Skeleton card template -->
   <template id="skeletonTpl">
-    <article class="product glass skeleton">
-      <div class="product-media shimmer"></div>
-      <header class="product-header">
-        <div class="title shimmer"></div>
-        <div class="chips line shimmer"></div>
+    <article class="product-modern glass-modern skeleton-modern">
+      <div class="product-media-modern shimmer-modern"></div>
+      <header class="product-header-modern">
+        <div class="title-modern shimmer-modern"></div>
+        <div class="chips-line-modern shimmer-modern"></div>
       </header>
-      <ul class="specs">
-        <li class="shimmer"></li>
-        <li class="shimmer"></li>
-        <li class="shimmer"></li>
+      <ul class="specs-modern">
+        <li class="shimmer-modern"></li>
+        <li class="shimmer-modern"></li>
+        <li class="shimmer-modern"></li>
       </ul>
-      <div class="priceRow">
-        <div class="price shimmer"></div>
-        <div class="ctaRow">
-          <span class="btn small shimmer"></span>
-          <span class="icon-btn shimmer"></span>
+      <div class="price-row-modern">
+        <div class="price-modern shimmer-modern"></div>
+        <div class="cta-row-modern">
+          <span class="btn-modern small shimmer-modern"></span>
+          <span class="icon-btn-modern shimmer-modern"></span>
         </div>
       </div>
     </article>
@@ -619,6 +881,79 @@
         applyQuickPick(btn.dataset.qpick);
       });
     })();
+  </script>
+
+  <!-- Enhanced Modern UX Features -->
+  <script>
+    // Floating nav dots functionality
+    document.addEventListener('DOMContentLoaded', () => {
+      const navDots = document.querySelectorAll('.nav-dot');
+      const sections = document.querySelectorAll('[data-section]');
+      
+      // Intersection Observer for active states
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const sectionName = entry.target.dataset.section;
+            navDots.forEach(dot => {
+              dot.classList.toggle('active', dot.dataset.section === sectionName);
+            });
+          }
+        });
+      }, { threshold: 0.3 });
+      
+      sections.forEach(section => observer.observe(section));
+      
+      // Click navigation
+      navDots.forEach(dot => {
+        dot.addEventListener('click', () => {
+          const targetSection = document.querySelector(`[data-section="${dot.dataset.section}"]`);
+          if (targetSection) {
+            targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
+      
+      // Enhanced progress ring
+      const progressRing = document.querySelector('.page-progress-ring');
+      const progressCircle = document.querySelector('.progress-ring-circle');
+      const progressPercentage = document.querySelector('.progress-percentage');
+      const radius = progressCircle.r.baseVal.value;
+      const circumference = radius * 2 * Math.PI;
+      
+      progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+      progressCircle.style.strokeDashoffset = circumference;
+      
+      function updateProgress() {
+        const scrollTop = window.pageYOffset;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const scrollPercent = scrollTop / docHeight;
+        const offset = circumference - scrollPercent * circumference;
+        
+        progressCircle.style.strokeDashoffset = offset;
+        progressPercentage.textContent = Math.round(scrollPercent * 100) + '%';
+        
+        // Show/hide based on scroll
+        progressRing.style.opacity = scrollTop > 100 ? '1' : '0';
+      }
+      
+      window.addEventListener('scroll', updateProgress, { passive: true });
+      updateProgress();
+      
+      // Enhanced reveal animations
+      const revealElements = document.querySelectorAll('.reveal');
+      const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry, index) => {
+          if (entry.isIntersecting) {
+            setTimeout(() => {
+              entry.target.classList.add('in-view');
+            }, index * 100); // Staggered animation
+          }
+        });
+      }, { threshold: 0.1 });
+      
+      revealElements.forEach(el => revealObserver.observe(el));
+    });
   </script>
 
   <noscript>Enable JavaScript to load filters and results.</noscript>
