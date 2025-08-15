@@ -1,20 +1,10 @@
-/* assets/js/kits.js
- * RouterHaus Kits — App logic (client-side)
- * Schema-aware for enriched JSON:
- * - reviewCount, rating
- * - applicableDeviceLoads, applicableCoverageBuckets, applicableWanTiers, applicablePrimaryUses
- * - chipsOverride, fitBullets, updatedAt
- * Robust data load + URL sync, facets, inclusive filtering, sorting, pagination, chips, compare, recos, a11y.
- *
- * Enhancements:
- * - Command bar condensation on scroll
- * - Powerful search (tokenized; brand/model/uses/tech terms; normalized no-punct)
- * - Search hotkeys: "/" or "Ctrl/Cmd+K" to focus, "Enter" to apply now, "Esc" to clear
- * - Optional clear button when input sits inside .search wrapper
- * - Works with header.html (open/edit quiz in header)
- * - Added voice search, low data mode, progress bar, your picks personalization, tilts, reveals
- */
-
+/* RouterHaus Kits — App logic (client-side)
+   Debug & hardening:
+   - Guard null DOM refs (progress bar, picks area, etc.)
+   - Remove undefined LS_KEY, add toast shim
+   - Safe user message rendering
+   - Preserve microdata when updating price
+*/
 (() => {
   // ---------- Utilities ----------
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -30,15 +20,20 @@
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
   const fmtMoney = (v) => (v == null || Number(v) === 0 ? '' : `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
   const uniq = (arr) => Array.from(new Set(arr.filter(Boolean)));
-  const nopunct = (s) => String(s || '').toLowerCase().replace(/[\W_]+/g, ''); // normalize for fuzzy inclusion
+  const nopunct = (s) => String(s || '').toLowerCase().replace(/[\W_]+/g, '');
+  const toast = (msg, type = 'info') => {
+    // Minimal shim; if a global showToast exists, use it
+    if (typeof window.showToast === 'function') { window.showToast(msg, type); return; }
+    (type === 'error' ? console.error : console.log)(msg);
+  };
 
   // ---------- State ----------
   const state = {
     data: [],
     filtered: [],
-    facets: {},                 // facetKey -> Set(selected raw values)
-    facetDefs: {},              // facetKey -> { id, label, el, badge, getValues(item), map?, order? }
-    openDetails: LS.get('rh.details', {}), // facetKey -> boolean
+    facets: {},
+    facetDefs: {},
+    openDetails: LS.get('rh.details', {}),
     sort: qs.get('sort') || 'relevance',
     page: Math.max(1, Number(qs.get('page')) || 1),
     pageSize: Number(qs.get('ps')) || 12,
@@ -50,7 +45,7 @@
     optOut: LS.get('rh.optOut', false),
   };
 
-  // ---------- Elements (note: some live in header.html and mount later) ----------
+  // ---------- Elements ----------
   const el = {
     headerMount: byId('header-placeholder'),
     footerMount: byId('footer-placeholder'),
@@ -100,7 +95,6 @@
 
     openFiltersHeader: byId('openFiltersHeader'),
 
-    // Note: openQuiz/editQuiz live in header.html; don't cache now, query when needed
     copyLink: byId('copyLink'),
     resetAll: byId('resetAll'),
 
@@ -128,7 +122,7 @@
     facet_wifiGen: byId('facet-wifiGen'),
     facet_wifiBands: byId('facet-wifiBands'),
     facet_meshReady: byId('facet-meshReady'),
-    facet_meshEco: byId('facet-meshEco'), // reserved
+    facet_meshEco: byId('facet-meshEco'),
     facet_wanTier: byId('facet-wanTier'),
     facet_lanCount: byId('facet-lanCount'),
     facet_multiGigLan: byId('facet-multiGigLan'),
@@ -139,6 +133,7 @@
     facet_access: byId('facet-access'),
     facet_priceBucket: byId('facet-priceBucket'),
 
+    // Chat
     chatBtn: byId('chat-btn'),
     chatModal: byId('chat-modal'),
     chatMessages: $('.chat-messages', byId('chat-modal')),
@@ -161,7 +156,7 @@
   // ---------- Data ----------
   const getJsonUrl = () => (window.RH_CONFIG?.jsonUrl || 'kits.json');
   const fetchData = async () => {
-    const urls = [getJsonUrl(), './kits.json']; // include fallback
+    const urls = [getJsonUrl(), './kits.json'];
     for (const u of urls) {
       try {
         const res = await fetch(u, { cache: 'no-store' });
@@ -176,41 +171,32 @@
   // ---------- Derivations / normalizers ----------
   function deriveFields(x, idx) {
     const o = { ...x };
-
-    // ids/brand/model
     o.id = o.id ?? `k_${idx}_${(o.model || '').replace(/\W+/g, '').slice(0, 12)}`;
     o.brand = o.brand || o.manufacturer || guessBrand(o.model);
     o.model = (o.model || '').trim();
 
-    // wifi
     o.wifiStandard = normWifi(o.wifiStandard || o.wifi || '');
     if (!Array.isArray(o.wifiBands) || !o.wifiBands.length) o.wifiBands = guessBands(o.wifiStandard);
 
-    // mesh, coverage
     o.meshReady = !!o.meshReady;
     o.coverageSqft = num(o.coverageSqft);
     o.coverageBucket = o.coverageBucket || coverageToBucket(o.coverageSqft);
 
-    // WAN tier (prefer label if provided)
     o.maxWanSpeedMbps = num(o.maxWanSpeedMbps);
     o.wanTierLabel = o.wanTierLabel || wanLabelFromMbps(o.maxWanSpeedMbps);
     o.wanTier = o.wanTier ?? wanNumericFromLabel(o.wanTierLabel);
 
-    // ports
     o.lanCount = Number.isFinite(Number(o.lanCount)) ? Number(o.lanCount) : null;
     o.multiGigLan = !!o.multiGigLan;
     o.usb = !!o.usb;
 
-    // device capacity/load
     o.deviceCapacity = num(o.deviceCapacity);
-    if (!o.deviceLoad) o.deviceLoad = capacityToLoad(o.deviceCapacity); // bucket text (e.g., "16–30")
+    if (!o.deviceLoad) o.deviceLoad = capacityToLoad(o.deviceCapacity);
 
-    // uses (primaryUse + primaryUses; keep array + best single)
     if (!Array.isArray(o.primaryUses)) o.primaryUses = o.primaryUse ? [String(o.primaryUse)] : [];
     if (!o.primaryUse && o.primaryUses.length) o.primaryUse = o.primaryUses[0];
     o.primaryUse = o.primaryUse || 'All-Purpose';
 
-    // applicable* (capability envelopes for inclusive matching)
     o.applicableDeviceLoads = Array.isArray(o.applicableDeviceLoads) && o.applicableDeviceLoads.length
       ? uniq(o.applicableDeviceLoads)
       : uniq([o.deviceLoad]);
@@ -224,22 +210,18 @@
       ? uniq(o.applicablePrimaryUses.concat(o.primaryUses))
       : uniq(o.primaryUses);
 
-    // access & price
     o.accessSupport = Array.isArray(o.accessSupport) && o.accessSupport.length ? o.accessSupport : ['Cable', 'Fiber'];
     o.priceUsd = num(o.priceUsd);
     o.priceBucket = o.priceBucket || priceToBucket(o.priceUsd);
 
-    // reviews / rating (normalize field names)
     o.reviewCount = num(o.reviewCount ?? o.reviews);
-    o.reviews = o.reviewCount; // maintain legacy key used by sorts
+    o.reviews = o.reviewCount;
     o.rating = Number.isFinite(Number(o.rating)) ? Number(o.rating) : 0;
 
-    // misc
     o.img = typeof o.img === 'string' ? o.img : (o.image || '');
     o.url = typeof o.url === 'string' ? o.url : '';
     o.updatedAt = o.updatedAt || '';
 
-    // relevance score (cheap)
     o._score =
       (o.wifiStandard === '7' ? 5 : o.wifiStandard === '6E' ? 4 : o.wifiStandard === '6' ? 3 : 1) +
       (o.meshReady ? 1 : 0) +
@@ -261,7 +243,6 @@
   };
   const guessBands = (wifiStandard) => (/6E|7/.test(String(wifiStandard)) ? ['2.4','5','6'] : ['2.4','5']);
 
-  // Coverage bucket: empty string when unknown
   const coverageToBucket = (sq) => {
     if (!sq) return '';
     if (sq < 1800) return 'Apartment/Small';
@@ -269,7 +250,6 @@
     return 'Large/Multi-floor';
   };
 
-  // WAN conversions
   const wanLabelFromMbps = (mbps) => {
     if (!mbps) return '';
     if (mbps >= 10000) return '10G';
@@ -287,7 +267,6 @@
     }
   };
   const wanRank = (o) => {
-    // rank: 10G=4, 5G=3, 2.5G=2, ≤1G=1, unknown=0
     const l = o.wanTierLabel || wanLabelFromMbps(o.maxWanSpeedMbps) || '';
     return l === '10G' ? 4 : l === '5G' ? 3 : l === '2.5G' ? 2 : l === '≤1G' ? 1 : 0;
   };
@@ -318,7 +297,6 @@
     if (state.pageSize !== 12) qs2.set('ps', String(state.pageSize));
     if (!state.showRecos) qs2.set('recos', '0');
     if (state.search) qs2.set('q', state.search);
-    // facets
     for (const [k, vals] of Object.entries(state.facets)) {
       if (vals.size) qs2.set(k, [...vals].join(','));
     }
@@ -329,126 +307,48 @@
   // ---------- Facets ----------
   function buildFacetDefs() {
     state.facetDefs = {
-      brand: {
-        id: 'brand',
-        label: 'Brand',
-        el: el.facet_brand,
-        badge: el.badge_brand,
-        getValues: (o) => [o.brand].filter(Boolean),
-        order: null,
-      },
-      wifi: {
-        id: 'wifi',
-        label: 'Wi-Fi',
-        el: el.facet_wifiGen,
-        badge: el.badge_wifi,
-        getValues: (o) => [o.wifiStandard].filter(Boolean),
-        order: ['7','6E','6','5'],
-      },
-      bands: {
-        id: 'bands',
-        label: 'Bands',
-        el: el.facet_wifiBands,
-        getValues: (o) => Array.isArray(o.wifiBands) ? o.wifiBands.filter(Boolean) : [],
-        order: ['2.4','5','6'],
-      },
-      mesh: {
-        id: 'mesh',
-        label: 'Mesh',
-        el: el.facet_meshReady,
-        badge: el.badge_mesh,
+      brand: { id: 'brand', label: 'Brand', el: el.facet_brand, badge: el.badge_brand, getValues: (o) => [o.brand].filter(Boolean), order: null },
+      wifi:  { id: 'wifi',  label: 'Wi-Fi', el: el.facet_wifiGen, badge: el.badge_wifi, getValues: (o) => [o.wifiStandard].filter(Boolean), order: ['7','6E','6','5'] },
+      bands: { id: 'bands', label: 'Bands', el: el.facet_wifiBands, getValues: (o) => Array.isArray(o.wifiBands) ? o.wifiBands.filter(Boolean) : [], order: ['2.4','5','6'] },
+      mesh:  {
+        id: 'mesh', label: 'Mesh', el: el.facet_meshReady, badge: el.badge_mesh,
         getValues: (o) => [o.meshReady ? 'Mesh-ready' : 'Standalone'],
-        map: {
-          'Mesh-ready': (o) => !!o.meshReady,
-          'Standalone':  (o) => !o.meshReady,
-        },
+        map: { 'Mesh-ready': (o) => !!o.meshReady, 'Standalone': (o) => !o.meshReady },
         order: ['Mesh-ready','Standalone'],
       },
-      wan: {
-        id: 'wan',
-        label: 'WAN Tier',
-        el: el.facet_wanTier,
-        badge: el.badge_wan,
-        // Inclusive: use applicableWanTiers if present
-        getValues: (o) => (Array.isArray(o.applicableWanTiers) && o.applicableWanTiers.length
-          ? o.applicableWanTiers : [o.wanTierLabel].filter(Boolean)),
+      wan:   {
+        id: 'wan', label: 'WAN Tier', el: el.facet_wanTier, badge: el.badge_wan,
+        getValues: (o) => (Array.isArray(o.applicableWanTiers) && o.applicableWanTiers.length ? o.applicableWanTiers : [o.wanTierLabel].filter(Boolean)),
         order: ['10G','5G','2.5G','≤1G'],
       },
-      lanCount: {
-        id: 'lanCount',
-        label: 'LAN Ports',
-        el: el.facet_lanCount,
-        getValues: (o) => Number.isFinite(o.lanCount) ? [String(o.lanCount)] : [],
-        order: null,
-      },
-      multiGigLan: {
-        id: 'multiGigLan',
-        label: 'Multi-Gig LAN',
-        el: el.facet_multiGigLan,
-        getValues: (o) => [o.multiGigLan ? 'Yes' : 'No'],
-        order: ['Yes','No'],
-      },
-      usb: {
-        id: 'usb',
-        label: 'USB',
-        el: el.facet_usb,
-        getValues: (o) => [o.usb ? 'Yes' : 'No'],
-        order: ['Yes','No'],
-      },
+      lanCount: { id: 'lanCount', label: 'LAN Ports', el: el.facet_lanCount, getValues: (o) => Number.isFinite(o.lanCount) ? [String(o.lanCount)] : [], order: null },
+      multiGigLan: { id: 'multiGigLan', label: 'Multi-Gig LAN', el: el.facet_multiGigLan, getValues: (o) => [o.multiGigLan ? 'Yes' : 'No'], order: ['Yes','No'] },
+      usb:   { id: 'usb', label: 'USB', el: el.facet_usb, getValues: (o) => [o.usb ? 'Yes' : 'No'], order: ['Yes','No'] },
       coverage: {
-        id: 'coverage',
-        label: 'Coverage',
-        el: el.facet_coverageBucket,
-        badge: el.badge_cov,
-        // Inclusive: applicableCoverageBuckets if present
-        getValues: (o) => (Array.isArray(o.applicableCoverageBuckets) && o.applicableCoverageBuckets.length
-          ? o.applicableCoverageBuckets : [o.coverageBucket].filter(Boolean)),
+        id: 'coverage', label: 'Coverage', el: el.facet_coverageBucket, badge: el.badge_cov,
+        getValues: (o) => (Array.isArray(o.applicableCoverageBuckets) && o.applicableCoverageBuckets.length ? o.applicableCoverageBuckets : [o.coverageBucket].filter(Boolean)),
         order: ['Apartment/Small','2–3 Bedroom','Large/Multi-floor'],
       },
       device: {
-        id: 'device',
-        label: 'Device Load',
-        el: el.facet_deviceLoad,
-        badge: el.badge_dev,
-        // Inclusive: applicableDeviceLoads if present
-        getValues: (o) => (Array.isArray(o.applicableDeviceLoads) && o.applicableDeviceLoads.length
-          ? o.applicableDeviceLoads : [o.deviceLoad].filter(Boolean)),
+        id: 'device', label: 'Device Load', el: el.facet_deviceLoad, badge: el.badge_dev,
+        getValues: (o) => (Array.isArray(o.applicableDeviceLoads) && o.applicableDeviceLoads.length ? o.applicableDeviceLoads : [o.deviceLoad].filter(Boolean)),
         order: ['1–5','6–15','16–30','31–60','61–100','100+'],
       },
-      use: {
-        id: 'use',
-        label: 'Primary Use',
-        el: el.facet_primaryUse,
-        badge: el.badge_use,
-        // Union: primaryUses ∪ applicablePrimaryUses
+      use:   {
+        id: 'use', label: 'Primary Use', el: el.facet_primaryUse, badge: el.badge_use,
         getValues: (o) => uniq([...(o.primaryUses || []), ...(o.applicablePrimaryUses || []), o.primaryUse]).filter(Boolean),
         order: null,
       },
-      access: {
-        id: 'access',
-        label: 'Access',
-        el: el.facet_access,
-        getValues: (o) => Array.isArray(o.accessSupport) ? o.accessSupport.filter(Boolean) : [],
-        order: ['Cable','Fiber','FixedWireless5G','Satellite','DSL'],
-      },
-      price: {
-        id: 'price',
-        label: 'Price',
-        el: el.facet_priceBucket,
-        badge: el.badge_price,
-        getValues: (o) => [o.priceBucket].filter(Boolean).filter(x => x !== 'N/A'),
-        order: ['<150','150–299','300–599','600+'],
-      },
+      access: { id: 'access', label: 'Access', el: el.facet_access, getValues: (o) => Array.isArray(o.accessSupport) ? o.accessSupport.filter(Boolean) : [], order: ['Cable','Fiber','FixedWireless5G','Satellite','DSL'] },
+      price:  { id: 'price', label: 'Price', el: el.facet_priceBucket, badge: el.badge_price, getValues: (o) => [o.priceBucket].filter(Boolean).filter(x => x !== 'N/A'), order: ['<150','150–299','300–599','600+'] },
     };
 
-    // Initialize selected facets from URL
     for (const key of Object.keys(state.facetDefs)) {
       const val = qs.get(key);
       state.facets[key] = new Set(val ? val.split(',') : []);
     }
   }
 
-  // Build facet option lists (raw values only; display text handled separately)
   function facetOptionsFromData() {
     const setmap = {};
     for (const key of Object.keys(state.facetDefs)) setmap[key] = new Set();
@@ -460,8 +360,6 @@
         });
       }
     }
-
-    // Order each facet per curated order if defined
     const opts = {};
     for (const [key, def] of Object.entries(state.facetDefs)) {
       const values = [...setmap[key]];
@@ -480,12 +378,10 @@
     if (!def.el) return;
     const selected = state.facets[def.id];
     def.el.innerHTML = '';
-
     for (const opt of options) {
       const raw = typeof opt === 'string' ? opt : opt.value;
       const labelText = typeof opt === 'string' ? opt : opt.label;
       const id = `f_${def.id}_${raw.replace(/\W+/g,'')}`;
-
       const label = document.createElement('label');
       label.innerHTML = `
         <input type="checkbox" id="${id}" value="${raw}">
@@ -500,8 +396,6 @@
       });
       def.el.appendChild(label);
     }
-
-    // update badge
     if (def.badge) {
       const n = selected.size;
       def.badge.textContent = String(n);
@@ -518,30 +412,27 @@
       details?.addEventListener('toggle', () => {
         state.openDetails[key] = details.open;
         LS.set('rh.details', state.openDetails);
-      }); // persist on every toggle
+      });
     }
   }
 
-  // ---------- Filtering (facet + search; inclusive with applicable* arrays) ----------
+  // ---------- Filtering ----------
   function applyFilters() {
     const selected = state.facets;
     const anyFacet = Object.values(selected).some(s => s.size);
     const term = state.search;
 
     const out = state.data.filter(o => {
-      // Text search (brand/model/uses/tech); tokenized AND; normalized too
       if (term) {
         const hayRaw = [
           o.brand, o.model,
           'wifi', `wifi-${o.wifiStandard}`, `wifi ${o.wifiStandard}`, `wifi${o.wifiStandard}`,
-          o.wifiStandard,
-          o.wanTierLabel,
+          o.wifiStandard, o.wanTierLabel,
           o.meshReady ? 'mesh mesh-ready' : 'standalone non-mesh',
           ...(o.primaryUses || []),
           ...(o.applicablePrimaryUses || []),
           ...(o.useTags || []),
         ].join(' ').toLowerCase();
-
         const hayComp = nopunct(hayRaw);
         const tokens = term.split(/\s+/).filter(Boolean);
         for (const t of tokens) {
@@ -550,19 +441,14 @@
         }
       }
 
-      // Facet constraints
       for (const [key, def] of Object.entries(state.facetDefs)) {
         const sel = selected[key];
         if (!sel || sel.size === 0) continue;
-
         if (def.map) {
-          // boolean map (mesh)
           const any = [...sel].some(v => !!def.map[v]?.(o));
           if (!any) return false;
           continue;
         }
-
-        // Raw values emitted by def.getValues (inclusive-ready)
         const vals = new Set(def.getValues(o).map(String));
         let any = false;
         for (const v of sel) { if (vals.has(v)) { any = true; break; } }
@@ -572,7 +458,7 @@
     });
 
     state.filtered = out;
-    el.emptyState.classList.toggle('hide', !(anyFacet && out.length === 0));
+    el.emptyState?.classList.toggle('hide', !(anyFacet && out.length === 0));
     return out;
   }
 
@@ -590,9 +476,7 @@
   function cmpPriceAsc(a, b) { return (a.priceUsd || Infinity) - (b.priceUsd || Infinity); }
   function rankWifi(o) { return o.wifiStandard === '7' ? 4 : o.wifiStandard === '6E' ? 3 : o.wifiStandard === '6' ? 2 : 1; }
 
-  function sortResults() {
-    state.filtered.sort(comparators[state.sort] || comparators.relevance);
-  }
+  function sortResults() { state.filtered.sort(comparators[state.sort] || comparators.relevance); }
 
   // ---------- Pagination ----------
   function paginate() {
@@ -620,10 +504,7 @@
       b.setAttribute('data-page', String(page));
       b.disabled = page === state.page;
       if (cls === 'page' && page === state.page) b.setAttribute('aria-current', 'page');
-      b.addEventListener('click', () => {
-        state.page = page;
-        onStateChanged({ scrollToTop: true });
-      });
+      b.addEventListener('click', () => { state.page = page; onStateChanged({ scrollToTop: true }); });
       b.addEventListener('keyup', (e) => { if (e.key === 'Enter' || e.key === ' ') b.click(); });
       return b;
     };
@@ -637,7 +518,6 @@
     next.disabled = state.page === pageCount;
 
     container.appendChild(prev);
-
     const pages = numberedPages(state.page, pageCount);
     for (const p of pages) {
       if (p === '…') {
@@ -654,25 +534,18 @@
 
   function numberedPages(current, total) {
     const arr = [];
-    const push = (x) => arr.push(x);
     const windowSize = 2;
     const start = Math.max(1, current - windowSize);
     const end = Math.min(total, current + windowSize);
-
-    if (start > 1) {
-      push(1);
-      if (start > 2) push('…');
-    }
-    for (let i = start; i <= end; i++) push(i);
-    if (end < total) {
-      if (end < total - 1) push('…');
-      push(total);
-    }
+    if (start > 1) { arr.push(1); if (start > 2) arr.push('…'); }
+    for (let i = start; i <= end; i++) arr.push(i);
+    if (end < total) { if (end < total - 1) arr.push('…'); arr.push(total); }
     return arr;
   }
 
-  // ---------- Chips (active filters) ----------
+  // ---------- Chips ----------
   function renderActiveChips() {
+    if (!el.activeChips) return;
     el.activeChips.innerHTML = '';
     let any = false;
     for (const [key, def] of Object.entries(state.facetDefs)) {
@@ -695,12 +568,10 @@
       }
     }
     el.activeChips.style.display = any ? '' : 'none';
-    // Update mobile FAB badge
     const activeCount = Object.values(state.facets).reduce((n, s) => n + (s?.size || 0), 0);
     if (el.activeCountBadge) el.activeCountBadge.textContent = String(activeCount);
   }
 
-  // Esc removes something (or clears search if focused)
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     const searchInput = byId('searchInput');
@@ -726,7 +597,6 @@
 
   // ---------- Compare ----------
   const MAX_COMPARE = 4;
-
   function toggleCompare(id) {
     if (state.compare.has(id)) state.compare.delete(id);
     else {
@@ -735,37 +605,28 @@
     }
     updateCompareUI();
   }
-
   function clearCompareAll() { state.compare.clear(); updateCompareUI(); }
 
   function updateCompareUI() {
     const items = [...state.compare].map(id => state.data.find(x => x.id === id)).filter(Boolean);
-
-    // Sidebar panel (desktop)
-    el.compareItemsPanel.innerHTML = '';
-    for (const it of items) el.compareItemsPanel.appendChild(compareBadge(it));
-
-    // Mobile drawer bar
-    el.compareItems.innerHTML = '';
-    for (const it of items) el.compareItems.appendChild(compareBadge(it));
-
-    // Sticky button + count
-    el.compareCount.textContent = String(items.length);
-    el.compareSticky.hidden = items.length === 0;
-
-    // Clear buttons
+    if (el.compareItemsPanel) {
+      el.compareItemsPanel.innerHTML = '';
+      for (const it of items) el.compareItemsPanel.appendChild(compareBadge(it));
+    }
+    if (el.compareItems) {
+      el.compareItems.innerHTML = '';
+      for (const it of items) el.compareItems.appendChild(compareBadge(it));
+    }
+    if (el.compareCount) el.compareCount.textContent = String(items.length);
+    if (el.compareSticky) el.compareSticky.hidden = items.length === 0;
     el.clearCompare?.addEventListener('click', clearCompareAll, { once: true });
     el.clearCompareMobile?.addEventListener('click', clearCompareAll, { once: true });
-
-    // Toggle pressed state on cards
     $$('.compare-btn').forEach(btn => {
       const id = btn.closest('.product')?.dataset?.id;
       btn.setAttribute('aria-pressed', state.compare.has(id) ? 'true' : 'false');
     });
-
-    if (items.length === 0) el.compareDrawer.hidden = true;
+    if (items.length === 0 && el.compareDrawer) el.compareDrawer.hidden = true;
   }
-
   function compareBadge(it) {
     const span = document.createElement('span');
     span.className = 'item';
@@ -774,44 +635,44 @@
     span.addEventListener('click', () => { toggleCompare(it.id); });
     return span;
   }
-
   el.compareSticky?.addEventListener('click', () => {
+    if (!el.compareDrawer) return;
     el.compareDrawer.hidden = !el.compareDrawer.hidden;
   });
 
   // ---------- Recommendations ----------
   function quizMatch(o, q) {
-    // Inclusive matching using applicable* if available
     const covOK = !q.coverage || (o.applicableCoverageBuckets || [o.coverageBucket]).includes(q.coverage);
     const devOK = !q.devices  || (o.applicableDeviceLoads || [o.deviceLoad]).includes(q.devices);
     const useOK = !q.use      || (uniq([...(o.primaryUses||[]), ...(o.applicablePrimaryUses||[]), o.primaryUse])).includes(q.use);
     return covOK && devOK && useOK;
   }
-
   function computeRecommendations() {
     if (!state.quiz) return state.data
       .slice()
       .sort((a,b) => (rankWifi(b)-rankWifi(a)) || (wanRank(b)-wanRank(a)) || (b._score-a._score))
       .slice(0,8);
-
     const q = state.quiz;
     return state.data
       .filter(o => quizMatch(o, q))
       .sort((a,b) => (rankWifi(b)-rankWifi(a)) || (wanRank(b)-wanRank(a)) || (b._score-a._score))
       .slice(0, 8);
   }
-
   function renderRecommendations() {
+    if (!el.recommendations) return;
     if (!state.showRecos) { el.recommendations.style.display = 'none'; return; }
     const rec = computeRecommendations();
     el.recommendations.style.display = rec.length ? '' : 'none';
-    el.recoGrid.innerHTML = '';
-    el.recoNote.textContent = state.quiz ? 'Based on your quiz answers' : 'Top picks right now';
-    for (const o of rec) el.recoGrid.appendChild(renderCard(o));
+    if (el.recoGrid) {
+      el.recoGrid.innerHTML = '';
+      el.recoNote.textContent = state.quiz ? 'Based on your quiz answers' : 'Top picks right now';
+      for (const o of rec) el.recoGrid.appendChild(renderCard(o));
+    }
   }
 
   // ---------- Your Picks (personalized) ----------
   function renderYourPicks() {
+    if (!el.yourPicks || !el.picksGrid) return; // not present on this page
     if (!state.quiz || state.optOut) {
       el.yourPicks.hidden = true;
       return;
@@ -827,13 +688,15 @@
 
   // ---------- Results rendering ----------
   function renderSkeletons(n = state.pageSize) {
+    if (!el.skeletonGrid || !el.skeletonTpl) return;
     el.skeletonGrid.innerHTML = '';
     el.skeletonGrid.style.display = '';
     for (let i = 0; i < n; i++) el.skeletonGrid.appendChild(el.skeletonTpl.content.cloneNode(true));
   }
-  function hideSkeletons() { el.skeletonGrid.style.display = 'none'; }
+  function hideSkeletons() { if (el.skeletonGrid) el.skeletonGrid.style.display = 'none'; }
 
   function renderResults(items) {
+    if (!el.resultsGrid) return;
     el.resultsGrid.innerHTML = '';
     const frag = document.createDocumentFragment();
     for (const o of items) frag.appendChild(renderCard(o));
@@ -851,7 +714,6 @@
 
     node.querySelector('.title').textContent = o.model;
 
-    // Chips: prefer chipsOverride else derive
     const chips = node.querySelector('.chips.line');
     const chipTexts = Array.isArray(o.chipsOverride) && o.chipsOverride.length
       ? o.chipsOverride.slice(0, 3)
@@ -863,20 +725,22 @@
     chipTexts.forEach(t => chips.appendChild(chip(t)));
     if (chipTexts.length < 3 && o.coverageBucket) chips.appendChild(chip(o.coverageBucket));
 
-    // Friendlier bullets first (fallback to builder)
     const specs = node.querySelector('.specs');
     const bullets = (Array.isArray(o.fitBullets) && o.fitBullets.length >= 3)
       ? o.fitBullets.slice(0,4)
       : buildBullets(o);
     bullets.forEach(t => specs.appendChild(li(t)));
 
-    // Price + CTA
-    node.querySelector('.price').textContent = fmtMoney(o.priceUsd);
+    // Price + CTA (preserve microdata spans)
+    const priceWrap = node.querySelector('.price');
+    const priceSpan = node.querySelector('[itemprop="price"]');
+    if (priceSpan) priceSpan.textContent = o.priceUsd ? Number(o.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '';
+    else priceWrap.textContent = fmtMoney(o.priceUsd);
+
     const buy = node.querySelector('.ctaRow a');
     if (o.url) { buy.href = o.url; buy.removeAttribute('aria-disabled'); buy.classList.remove('disabled'); buy.textContent = 'Buy'; }
     else { buy.href = '#'; buy.setAttribute('aria-disabled','true'); buy.classList.add('disabled'); buy.textContent = 'Details'; }
 
-    // Compare toggle
     const cmpBtn = node.querySelector('.compare-btn');
     cmpBtn.setAttribute('aria-pressed', state.compare.has(o.id) ? 'true' : 'false');
     cmpBtn.addEventListener('click', () => toggleCompare(o.id));
@@ -900,40 +764,26 @@
     const l = o.wanTierLabel || wanLabelFromMbps(o.maxWanSpeedMbps);
     if (l) out.push(`Internet: ${l === '≤1G' ? 'up to 1 Gbps' : l + 'bps'}`);
     if (o.primaryUse) out.push(`Best for: ${o.primaryUse}`);
-
     if (out.length < 3 && Array.isArray(o.wifiBands) && o.wifiBands.length) out.push(`${o.wifiBands.join(' / ')} GHz`);
     if (out.length < 3 && o.multiGigLan) out.push('Multi-Gig LAN');
     if (out.length < 3 && Number.isFinite(o.lanCount)) out.push(`${o.lanCount} LAN ports`);
     return out.slice(0,4);
   }
 
-  // ---------- Toolbar / Search / Header ----------
+  // ---------- Toolbar / Search ----------
   function wireToolbar() {
     if (el.sortSelect) {
       el.sortSelect.value = state.sort;
-      el.sortSelect.addEventListener('change', () => {
-        state.sort = el.sortSelect.value;
-        state.page = 1;
-        onStateChanged({});
-      });
+      el.sortSelect.addEventListener('change', () => { state.sort = el.sortSelect.value; state.page = 1; onStateChanged({}); });
     }
     if (el.pageSizeSelect) {
       el.pageSizeSelect.value = String(state.pageSize);
-      el.pageSizeSelect.addEventListener('change', () => {
-        state.pageSize = Number(el.pageSizeSelect.value);
-        state.page = 1;
-        onStateChanged({});
-      });
+      el.pageSizeSelect.addEventListener('change', () => { state.pageSize = Number(el.pageSizeSelect.value); state.page = 1; onStateChanged({}); });
     }
     if (el.toggleRecos) {
       el.toggleRecos.checked = state.showRecos;
-      el.toggleRecos.addEventListener('change', () => {
-        state.showRecos = el.toggleRecos.checked;
-        syncUrl();
-        renderRecommendations();
-      });
+      el.toggleRecos.addEventListener('change', () => { state.showRecos = el.toggleRecos.checked; syncUrl(); renderRecommendations(); });
     }
-
     if (el.lowDataToggle) {
       el.lowDataToggle.checked = state.lowDataMode;
       el.lowDataToggle.addEventListener('change', () => {
@@ -944,7 +794,6 @@
       });
       document.body.classList.toggle('low-data', state.lowDataMode);
     }
-
     el.openFiltersHeader?.addEventListener('click', openDrawer);
     el.filtersFab?.addEventListener('click', () => {
       openDrawer();
@@ -956,13 +805,11 @@
     wireProgressBar();
   }
 
-  // Search bar UX: focus hotkeys, clear button, debounced filtering, Search button, Enter apply
   function wireSearch() {
-    const input = byId('searchInput');   // lives in kits.html
-    const btn   = byId('searchBtn');     // lives in kits.html
+    const input = byId('searchInput');
+    const btn   = byId('searchBtn');
     if (!input) return;
 
-    // If wrapped in .search, inject a clear button (optional)
     const wrap = input.closest('.search');
     let clearBtn = null;
     if (wrap && !wrap.querySelector('[data-clear]')) {
@@ -986,45 +833,26 @@
       });
     }
 
-    // Initial value from URL
     input.value = state.search;
-
-    const applySearch = () => {
-      state.search = (input.value || '').trim().toLowerCase();
-      state.page = 1;
-      onStateChanged({ scrollToTop: true });
-    };
-
+    const applySearch = () => { state.search = (input.value || '').trim().toLowerCase(); state.page = 1; onStateChanged({ scrollToTop: true }); };
     const onType = debounce(() => applySearch(), 220);
     input.addEventListener('input', onType);
 
-    // Enter submits immediately (no debounce)
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); applySearch(); }
-      if (e.key === 'Escape' && input.value) {
-        e.preventDefault();
-        input.value = '';
-        applySearch();
-      }
+      if (e.key === 'Escape' && input.value) { e.preventDefault(); input.value = ''; applySearch(); }
     });
 
-    // Search button click
     if (btn) btn.addEventListener('click', applySearch);
 
-    // Keyboard: "/" or Ctrl/Cmd+K focuses the input globally
     document.addEventListener('keydown', (e) => {
       const tag = (document.activeElement?.tagName || '').toLowerCase();
       const typingField = tag === 'input' || tag === 'textarea' || tag === 'select' || document.activeElement?.isContentEditable;
       const modK = (e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey));
       if (typingField && !modK) return;
-      if (modK || e.key === '/') {
-        e.preventDefault();
-        input.focus();
-        input.select();
-      }
+      if (modK || e.key === '/') { e.preventDefault(); input.focus(); input.select(); }
     });
 
-    // Voice search (Web Speech API)
     if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
       const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
       const rec = new SpeechRec();
@@ -1032,10 +860,7 @@
       const micBtn = $('.mic', wrap);
       if (micBtn) {
         micBtn.style.display = "inline-flex";
-        micBtn.addEventListener("click", () => {
-          rec.start();
-          micBtn.classList.add("active");
-        });
+        micBtn.addEventListener("click", () => { rec.start(); micBtn.classList.add("active"); });
         rec.onresult = (e) => {
           const transcript = e.results[0][0].transcript;
           input.value = transcript;
@@ -1043,38 +868,32 @@
           micBtn.classList.remove("active");
         };
         rec.onend = () => micBtn.classList.remove("active");
-        rec.onerror = () => {
-          showToast("Voice recognition error", "error");
-          micBtn.classList.remove("active");
-        };
+        rec.onerror = () => { toast("Voice recognition error", "error"); micBtn.classList.remove("active"); };
       }
     }
   }
 
-  // Condense the command bar on scroll (if present)
   function wireCommandBarCondense() {
     const bar = $('.command-bar');
     if (!bar) return;
-    const onScroll = () => {
-      const y = window.scrollY || document.documentElement.scrollTop;
-      bar.classList.toggle('is-condensed', y > 50);
-    };
+    const onScroll = () => { const y = window.scrollY || document.documentElement.scrollTop; bar.classList.toggle('is-condensed', y > 50); };
     addEventListener('scroll', onScroll, { passive: true });
     onScroll();
   }
 
-  // Progress bar on scroll
   function wireProgressBar() {
+    if (!el.progressFill) return; // guard if markup removed
     const update = () => {
-      const h = document.documentElement.scrollHeight - innerHeight;
+      const h = Math.max(1, document.documentElement.scrollHeight - innerHeight);
       el.progressFill.style.width = `${(scrollY / h * 100)}%`;
     };
     addEventListener('scroll', update, { passive: true });
     update();
   }
 
-  // ---------- Drawer (mobile filters) ----------
+  // ---------- Drawer ----------
   function openDrawer() {
+    if (!el.filtersForm || !el.filtersDrawer || !el.drawerFormMount) return;
     el.drawerFormMount.innerHTML = '';
     const clone = el.filtersForm.cloneNode(true);
     el.drawerFormMount.appendChild(clone);
@@ -1082,11 +901,9 @@
     document.documentElement.classList.add('scroll-lock');
 
     $$('[data-close-drawer]').forEach(b => b.addEventListener('click', closeDrawer, { once: true }));
-    el.applyDrawer.onclick = () => {
-      syncChecks(clone, el.filtersForm);
-      closeDrawer();
-      onStateChanged({});
-    };
+    if (el.applyDrawer) {
+      el.applyDrawer.onclick = () => { syncChecks(clone, el.filtersForm); closeDrawer(); onStateChanged({}); };
+    }
 
     function syncChecks(src, dst) {
       const map = new Map();
@@ -1099,6 +916,7 @@
     }
   }
   function closeDrawer() {
+    if (!el.filtersDrawer) return;
     el.filtersDrawer.setAttribute('aria-hidden', 'true');
     el.filtersFab?.setAttribute('aria-expanded', 'false');
     document.documentElement.classList.remove('scroll-lock');
@@ -1147,8 +965,8 @@
   function updateCounts() {
     const total = state.filtered.length;
     const all = state.data.length;
-    el.matchCount.textContent = `${total} match${total === 1 ? '' : 'es'} / ${all}`;
-    el.kitsStatus.textContent = `Showing ${Math.min(total, state.pageSize)} of ${total} matches`;
+    if (el.matchCount) el.matchCount.textContent = `${total} match${total === 1 ? '' : 'es'} / ${all}`;
+    if (el.kitsStatus) el.kitsStatus.textContent = `Showing ${Math.min(total, state.pageSize)} of ${total} matches`;
   }
 
   // ---------- Quick chips ----------
@@ -1168,11 +986,13 @@
       ['Fast Internet', () => state.facets.wifi.add('7')],
       ['Work from Home', () => state.facets.use.add('Work-From-Home')],
     ];
-    el.quickChips.innerHTML = '';
-    el.emptyQuickChips.innerHTML = '';
-    for (const [l, fn] of picks) {
-      const b1 = make(l, fn); el.quickChips.appendChild(b1);
-      const b2 = make(l, fn); el.emptyQuickChips.appendChild(b2);
+    if (el.quickChips) {
+      el.quickChips.innerHTML = '';
+      for (const [l, fn] of picks) el.quickChips.appendChild(make(l, fn));
+    }
+    if (el.emptyQuickChips) {
+      el.emptyQuickChips.innerHTML = '';
+      for (const [l, fn] of picks) el.emptyQuickChips.appendChild(make(l, fn));
     }
   }
 
@@ -1205,7 +1025,6 @@
 
   // ---------- Quiz wiring ----------
   window.RH_APPLY_QUIZ = (answers) => {
-    // answers: { coverage, devices, use, ... }
     state.quiz = answers;
     if (answers.coverage) { state.facets.coverage.clear(); state.facets.coverage.add(answers.coverage); }
     if (answers.devices)  { state.facets.device.clear(); state.facets.device.add(answers.devices); }
@@ -1213,28 +1032,12 @@
     state.showRecos = true;
     if (el.toggleRecos) el.toggleRecos.checked = true;
     onStateChanged({ scrollToRecos: true });
-
-    // Unhide Edit button in header if present (header mounts asynchronously)
     const editBtn = byId('editQuiz');
     if (editBtn) editBtn.removeAttribute('hidden');
   };
-  // Note: quiz-modal.js uses delegated clicks for #editQuiz / #openQuiz, so no listener needed here.
 
-  // ---------- Empty-state quiz button (delegated by quiz-modal.js) ----------
-  (function ensureEmptyQuizButton() {
-    if (!el.emptyState) return;
-    if (el.emptyState.querySelector('[data-open-quiz]')) return;
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'btn primary';
-    b.setAttribute('data-open-quiz', '');
-    b.textContent = 'Try Our Quiz for Suggestions';
-    el.emptyState.appendChild(b);
-  })();
-
-  // ---------- Header quiz bridges (since header inline script won't run when injected) ----------
+  // ---------- Header quiz bridges ----------
   function wireHeaderQuizBridges() {
-    // Forward mobile CTA clicks to main quiz actions (or event fallback)
     document.addEventListener('click', (e) => {
       const openBtn = e.target.closest('[data-open-quiz]');
       if (openBtn) {
@@ -1243,7 +1046,6 @@
         else document.dispatchEvent(new CustomEvent('quiz:open'));
       }
     });
-
     document.addEventListener('click', (e) => {
       const editBtn = e.target.closest('[data-edit-quiz]');
       if (editBtn) {
@@ -1251,8 +1053,6 @@
         if (t && !t.hasAttribute('hidden')) t.click();
       }
     });
-
-    // Keep mobile [data-edit-quiz] visibility in sync with #editQuiz
     const editHeader = document.getElementById('editQuiz');
     const editMobile = document.querySelector('[data-edit-quiz]');
     if (editHeader && editMobile) {
@@ -1295,39 +1095,34 @@
   function revealify() {
     const els = $$(".reveal");
     if (!els.length || !("IntersectionObserver" in window)) return;
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((en) => {
-          if (en.isIntersecting) {
-            en.target.classList.add("in-view");
-            io.unobserve(en.target);
-          }
-        });
-      },
-      { rootMargin: "0px 0px -10% 0px", threshold: 0.1 }
-    );
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("in-view"); io.unobserve(en.target); } });
+    }, { rootMargin: "0px 0px -10% 0px", threshold: 0.1 });
     els.forEach((el) => io.observe(el));
   }
 
   // ---------- AI Chat Widget ----------
   function wireChat() {
+    if (!el.chatBtn || !el.chatModal || !el.chatMessages || !el.chatInputForm || !el.chatInput) return;
+
     el.chatBtn.addEventListener("click", () => {
       el.chatModal.classList.add("active");
       el.chatModal.setAttribute("aria-hidden", "false");
     });
 
-    $('.close', el.chatModal).addEventListener("click", () => {
+    $('.close', el.chatModal)?.addEventListener("click", () => {
       el.chatModal.classList.remove("active");
       el.chatModal.setAttribute("aria-hidden", "true");
     });
 
-    el.chatOptOut.addEventListener("click", (e) => {
+    el.chatOptOut?.addEventListener("click", (e) => {
       e.preventDefault();
-      LS.del(LS_KEY);
+      // Clear any persisted bits we own
+      LS.del('rh.quiz.answers');
       state.optOut = true;
       LS.set('rh.optOut', true);
-      showToast("Data persistence opted out and cleared", "info");
+      toast("Data persistence opted out and cleared", "info");
+      renderYourPicks();
     });
 
     el.chatInputForm.addEventListener("submit", (e) => {
@@ -1336,46 +1131,42 @@
       if (!q) return;
       addMessage(q, "user");
       el.chatInput.value = "";
-      // Simple rule-based "AI" responses (expand with kits.json logic later)
       let response = "Based on your query, explore our kits for tailored recommendations.";
-      if (q.toLowerCase().includes("3-floor") || q.toLowerCase().includes("large home")) {
+      const ql = q.toLowerCase();
+      if (ql.includes("3-floor") || ql.includes("large home") || ql.includes("multi-floor")) {
         response = 'For multi-floor homes, mesh systems provide optimal coverage. <a href="kits.html?coverage=Large/Multi-floor&mesh=Mesh-ready&recos=1">View large home options</a>.';
-      } else if (q.toLowerCase().includes("gaming")) {
+      } else if (ql.includes("gaming")) {
         response = 'Gaming setups benefit from high-speed WAN. <a href="kits.html?use=Gaming&wan=2.5G&recos=1">View gaming kits</a>.';
-      } else if (q.toLowerCase().includes("apartment") || q.toLowerCase().includes("small")) {
+      } else if (ql.includes("apartment") || ql.includes("small")) {
         response = 'Compact spaces need efficient routers. <a href="kits.html?coverage=Apartment/Small&recos=1">View apartment options</a>.';
       }
-      setTimeout(() => addMessage(response, "ai"), 600);
+      setTimeout(() => addMessage(response, "ai", true), 300);
     });
 
-    // Voice input (Web Speech API)
     if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
       const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
       const rec = new SpeechRec();
       rec.lang = "en-US";
       const micBtn = el.chatMic;
-      micBtn.style.display = "inline-flex";
-      micBtn.addEventListener("click", () => {
-        rec.start();
-        micBtn.classList.add("active");
-      });
-      rec.onresult = (e) => {
-        const transcript = e.results[0][0].transcript;
-        el.chatInput.value = transcript;
-        el.chatInputForm.dispatchEvent(new Event("submit"));
-        micBtn.classList.remove("active");
-      };
-      rec.onend = () => micBtn.classList.remove("active");
-      rec.onerror = () => {
-        showToast("Voice recognition error", "error");
-        micBtn.classList.remove("active");
-      };
+      if (micBtn) {
+        micBtn.style.display = "inline-flex";
+        micBtn.addEventListener("click", () => { rec.start(); micBtn.classList.add("active"); });
+        rec.onresult = (e) => {
+          const transcript = e.results[0][0].transcript;
+          el.chatInput.value = transcript;
+          el.chatInputForm.dispatchEvent(new Event("submit"));
+          micBtn.classList.remove("active");
+        };
+        rec.onend = () => micBtn.classList.remove("active");
+        rec.onerror = () => { toast("Voice recognition error", "error"); micBtn.classList.remove("active"); };
+      }
     }
 
-    function addMessage(text, type) {
+    function addMessage(text, type, allowHtml = false) {
       const div = document.createElement("div");
       div.classList.add("message", type);
-      div.innerHTML = text;
+      if (allowHtml) div.innerHTML = text;
+      else div.textContent = text; // SAFE for user messages
       el.chatMessages.appendChild(div);
       el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
     }
@@ -1383,11 +1174,9 @@
 
   // ---------- Lifecycle ----------
   async function init() {
-    // 1) Mount header/footer so header controls exist before wiring
     await Promise.all([mountPartial(el.headerMount), mountPartial(el.footerMount)]);
-    wireHeaderQuizBridges(); // ensure mobile quiz CTAs work even when header script didn't execute
+    wireHeaderQuizBridges();
 
-    // 2) Show skeletons while we load
     renderSkeletons(12);
 
     try {
@@ -1395,8 +1184,8 @@
       hideSkeletons();
     } catch (e) {
       hideSkeletons();
-      el.kitsError.classList.remove('hide');
-      el.kitsError.textContent = 'Failed to load kits. Please try again later.';
+      el.kitsError?.classList.remove('hide');
+      if (el.kitsError) el.kitsError.textContent = 'Failed to load kits. Please try again later.';
       return;
     }
 
@@ -1407,7 +1196,6 @@
     renderQuickChips();
     wireChat();
 
-    // Apply initial URL state to controls
     for (const [key] of Object.entries(state.facetDefs)) {
       const details = document.querySelector(`details.facet[data-facet="${key}"]`);
       if (!details) continue;
@@ -1416,7 +1204,6 @@
 
     onStateChanged({ initial: true });
 
-    // Focus search if q= is present
     if (state.search) byId('searchInput')?.focus();
 
     tiltCards();
@@ -1428,7 +1215,6 @@
     syncUrl();
     renderActiveChips();
 
-    // badge counts
     for (const [key, def] of Object.entries(state.facetDefs)) {
       if (!def.badge) continue;
       const n = state.facets[key]?.size || 0;
@@ -1446,13 +1232,12 @@
     renderYourPicks();
     updateCompareUI();
 
-    el.emptyState.classList.toggle('hide', state.filtered.length > 0);
+    el.emptyState?.classList.toggle('hide', state.filtered.length > 0);
 
     if (opts?.focusAfter?.focus) requestAnimationFrame(() => opts.focusAfter.focus());
     if (opts?.scrollToTop) window.scrollTo({ top: 0, behavior: 'smooth' });
     if (opts?.scrollToRecos) el.recommendations?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // Start
   document.addEventListener('DOMContentLoaded', init);
 })();
