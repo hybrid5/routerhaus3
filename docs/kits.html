@@ -26,6 +26,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 <body>
+  <!-- Top scroll progress (optional; JS will guard if missing) -->
+  <div class="page-progress" aria-hidden="true"><div id="progressFill" class="page-progress__fill"></div></div>
+
   <!-- Header partial mounts BEFORE main to avoid CLS -->
   <div id="header-placeholder" data-partial="header.html"></div>
 
@@ -357,6 +360,7 @@
             <button type="button" class="chip" data-qpick="fast">Fast Internet</button>
             <button type="button" class="chip" data-qpick="wfh">Work from Home</button>
           </div>
+          <button type="button" class="btn primary" data-open-quiz>Try Our Quiz for Suggestions</button>
         </div>
       </section>
 
@@ -539,7 +543,9 @@
       </header>
       <ul class="specs"></ul>
       <div class="priceRow">
-        <strong class="price" itemprop="offers" itemscope itemtype="https://schema.org/Offer"><span itemprop="priceCurrency" content="USD">$</span><span itemprop="price"></span></strong>
+        <strong class="price" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+          <span itemprop="priceCurrency" content="USD">$</span><span itemprop="price"></span>
+        </strong>
         <div class="ctaRow">
           <a class="btn small" target="_blank" rel="noopener">Buy</a>
           <button class="icon-btn compare-btn" title="Compare" type="button" aria-pressed="false">+</button>
@@ -589,7 +595,6 @@
   <!-- Quick Pick wiring via URL params (works without touching kits.js) -->
   <script>
     (function () {
-      // Map each quick pick to facet query values
       const MAP = {
         families: { use: 'Family Streaming', device: '16–30' },
         budget:   { price: '<150' },
@@ -598,28 +603,16 @@
         fast:     { wifi: '7' },
         wfh:      { use: 'Work-From-Home' }
       };
-
       function applyQuickPick(key) {
         const spec = MAP[key];
         if (!spec) return;
-
-        // Build new query string from current, then apply quick-pick facets
         const qs = new URLSearchParams(location.search);
-
-        // Remove any previous value for the facets we're setting (to avoid OR combos)
         Object.keys(spec).forEach(k => qs.delete(k));
-
         for (const [facet, value] of Object.entries(spec)) qs.set(facet, value);
-
-        // Fresh view: reset page and show recos
         qs.delete('page');
         qs.set('recos', '1');
-
-        // Navigate (kits.js reads facets from URL on load)
         location.search = qs.toString();
       }
-
-      // Delegate clicks from any [data-qpick] button, including the empty-state row
       document.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-qpick]');
         if (!btn) return;
