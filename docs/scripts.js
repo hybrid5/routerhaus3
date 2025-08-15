@@ -1,5 +1,5 @@
 // ============================
-//   RouterHaus v5 – scripts.js
+//   RouterHaus v5 – scripts.js (Updated: Added swipe-to-close for mobile sidebar, low-data mode toggle consideration, refined theme transitions)
 //   Partials + global UI wiring
 //   Emits `partials:loaded`
 // ============================
@@ -34,7 +34,7 @@ function showToast(msg, type = "success") {
   }
   const t = document.createElement("div");
   t.textContent = msg;
-  const bg = type === "error" ? "#FF6B7B" : type === "info" ? "#00CFFD" : "#37C978";
+  const bg = type === "error" ? "#FF6B7B" : type === "info" ? "#06B6D4" : "#37C978";
   Object.assign(t.style, {
     padding: "0.8rem 1.2rem",
     borderRadius: "8px",
@@ -94,7 +94,7 @@ function initUI() {
     onScroll();
   }
 
-  /* Sidebar (mobile nav) + body lock */
+  /* Sidebar (mobile nav) + body lock + swipe-to-close */
   if (hamburger && sidebar && overlay) {
     const lock = (on) => {
       document.documentElement.style.overflow = on ? "hidden" : "";
@@ -112,6 +112,20 @@ function initUI() {
     };
     hamburger.addEventListener("click", () => toggleSidebar());
     overlay.addEventListener("click", () => toggleSidebar(false));
+
+    // Swipe-to-close (left swipe on sidebar)
+    let startX = 0, startY = 0;
+    sidebar.addEventListener("touchstart", (e) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+    sidebar.addEventListener("touchmove", (e) => {
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (Math.abs(dx) > Math.abs(dy) && dx < -50) {
+        toggleSidebar(false);
+      }
+    }, { passive: true });
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && isOpen()) toggleSidebar(false);
